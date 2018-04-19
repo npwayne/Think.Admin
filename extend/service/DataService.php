@@ -1,7 +1,7 @@
 <?php
 
 // +----------------------------------------------------------------------
-// | Think.Admin
+// | ThinkAdmin
 // +----------------------------------------------------------------------
 // | 版权所有 2014~2017 广州楚才信息科技有限公司 [ http://www.cuci.cc ]
 // +----------------------------------------------------------------------
@@ -9,13 +9,13 @@
 // +----------------------------------------------------------------------
 // | 开源协议 ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
-// | github开源项目：https://github.com/zoujingli/Think.Admin
+// | github开源项目：https://github.com/zoujingli/ThinkAdmin
 // +----------------------------------------------------------------------
 
 namespace service;
 
 use think\Db;
-use think\Request;
+use think\db\Query;
 
 /**
  * 基础数据服务
@@ -32,6 +32,8 @@ class DataService
      * @param string $sequence
      * @param string $type
      * @return bool
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function deleteSequence($sequence, $type = 'SYSTEM')
     {
@@ -49,16 +51,13 @@ class DataService
     {
         $times = 0;
         while ($times++ < 10) {
-            $i = 0;
-            $sequence = '';
+            list($i, $sequence) = [0, ''];
             while ($i++ < $length) {
                 $sequence .= ($i <= 1 ? rand(1, 9) : rand(0, 9));
             }
             $data = ['sequence' => $sequence, 'type' => strtoupper($type)];
-            if (Db::name('SystemSequence')->where($data)->count() < 1) {
-                if (Db::name('SystemSequence')->insert($data) !== false) {
-                    return $sequence;
-                }
+            if (Db::name('SystemSequence')->where($data)->count() < 1 && Db::name('SystemSequence')->insert($data) !== false) {
+                return $sequence;
             }
         }
         return null;
@@ -66,48 +65,48 @@ class DataService
 
     /**
      * 数据增量保存
-     * @param \think\db\Query|string $dbQuery 数据查询对象
+     * @param Query|string $dbQuery 数据查询对象
      * @param array $data 需要保存或更新的数据
      * @param string $key 条件主键限制
      * @param array $where 其它的where条件
      * @return bool
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function save($dbQuery, $data, $key = 'id', $where = [])
     {
         $db = is_string($dbQuery) ? Db::name($dbQuery) : $dbQuery;
-        $where[$key] = isset($data[$key]) ? $data[$key] : '';
-        if ($db->where($where)->count() > 0) {
-            return $db->where($where)->update($data) !== false;
+        $where[] = [$key, 'eq', isset($data[$key]) ? $data[$key] : ''];
+        if (Db::table($db->getTable())->where($where)->count() > 0) {
+            return Db::table($db->getTable())->strict(false)->where($where)->update($data) !== false;
         }
-        return $db->insert($data) !== false;
+        return Db::table($db->getTable())->strict(false)->insert($data) !== false;
     }
 
     /**
      * 更新数据表内容
-     * @param \think\db\Query|string $dbQuery 数据查询对象
+     * @param Query|string $dbQuery 数据查询对象
      * @param array $where 额外查询条件
      * @return bool|null
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function update(&$dbQuery, $where = [])
     {
-        $request = Request::instance();
+        $request = app('request');
         $db = is_string($dbQuery) ? Db::name($dbQuery) : $dbQuery;
-        $ids = explode(',', $request->post('id', ''));
-        $field = $request->post('field', '');
-        $value = $request->post('value', '');
-        $pk = $db->getPk(['table' => $db->getTable()]);
-        $where[empty($pk) ? 'id' : $pk] = ['in', $ids];
+        list($pk, $table) = [$db->getPk(), $db->getTable()];
+        list($field, $value) = [$request->post('field', ''), $request->post('value', '')];
+        $where[] = [empty($pk) ? 'id' : $pk, 'in', explode(',', $request->post('id', ''))];
         // 删除模式，如果存在 is_deleted 字段使用软删除
         if ($field === 'delete') {
-            if (method_exists($db, 'getTableFields')) {
-                if (in_array('is_deleted', $db->getTableFields($db->getTable()))) {
-                    return false !== $db->where($where)->update(['is_deleted' => 1]);
-                }
+            if (method_exists($db, 'getTableFields') && in_array('is_deleted', $db->getTableFields())) {
+                return Db::table($table)->where($where)->update(['is_deleted' => '1']) !== false;
             }
-            return false !== $db->where($where)->delete();
+            return Db::table($table)->where($where)->delete() !== false;
         }
         // 更新模式，更新指定字段内容
-        return false !== $db->where($where)->update([$field => $value]);
+        return Db::table($table)->where($where)->update([$field => $value]) !== false;
     }
 
 }

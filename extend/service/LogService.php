@@ -1,7 +1,7 @@
 <?php
 
 // +----------------------------------------------------------------------
-// | Think.Admin
+// | ThinkAdmin
 // +----------------------------------------------------------------------
 // | 版权所有 2014~2017 广州楚才信息科技有限公司 [ http://www.cuci.cc ]
 // +----------------------------------------------------------------------
@@ -9,13 +9,13 @@
 // +----------------------------------------------------------------------
 // | 开源协议 ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
-// | github开源项目：https://github.com/zoujingli/Think.Admin
+// | github开源项目：https://github.com/zoujingli/ThinkAdmin
 // +----------------------------------------------------------------------
 
 namespace service;
 
 use think\Db;
-use think\Request;
+use think\db\Query;
 
 /**
  * 操作日志服务
@@ -29,7 +29,7 @@ class LogService
 
     /**
      * 获取数据操作对象
-     * @return \think\db\Query
+     * @return Query
      */
     protected static function db()
     {
@@ -44,9 +44,15 @@ class LogService
      */
     public static function write($action = '行为', $content = "内容描述")
     {
-        $request = Request::instance();
+        $request = app('request');
         $node = strtolower(join('/', [$request->module(), $request->controller(), $request->action()]));
-        $data = ['ip' => $request->ip(), 'node' => $node, 'username' => session('user.username') . '', 'action' => $action, 'content' => $content];
+        $data = [
+            'ip'       => $request->ip(),
+            'node'     => $node,
+            'action'   => $action,
+            'content'  => $content,
+            'username' => session('user.username') . '',
+        ];
         return self::db()->insert($data) !== false;
     }
 

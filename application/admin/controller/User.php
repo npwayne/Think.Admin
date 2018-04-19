@@ -1,7 +1,7 @@
 <?php
 
 // +----------------------------------------------------------------------
-// | Think.Admin
+// | ThinkAdmin
 // +----------------------------------------------------------------------
 // | 版权所有 2014~2017 广州楚才信息科技有限公司 [ http://www.cuci.cc ]
 // +----------------------------------------------------------------------
@@ -9,7 +9,7 @@
 // +----------------------------------------------------------------------
 // | 开源协议 ( https://mit-license.org )
 // +----------------------------------------------------------------------
-// | github开源项目：https://github.com/zoujingli/Think.Admin
+// | github开源项目：https://github.com/zoujingli/ThinkAdmin
 // +----------------------------------------------------------------------
 
 namespace app\admin\controller;
@@ -36,28 +36,33 @@ class User extends BasicAdmin
 
     /**
      * 用户列表
+     * @return array|string
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     * @throws \think\Exception
      */
     public function index()
     {
-        // 设置页面标题
         $this->title = '系统用户管理';
-        // 获取到所有GET参数
-        $get = $this->request->get();
-        // 实例Query对象
-        $db = Db::name($this->table)->where('is_deleted', '0');
-        // 应用搜索条件
-        foreach (['username', 'phone'] as $key) {
-            if (isset($get[$key]) && $get[$key] !== '') {
-                $db->where($key, 'like', "%{$get[$key]}%");
-            }
+        list($get, $db) = [$this->request->get(), Db::name($this->table)];
+        foreach (['username', 'phone', 'mail'] as $key) {
+            (isset($get[$key]) && $get[$key] !== '') && $db->whereLike($key, "%{$get[$key]}%");
         }
-        // 实例化并显示
-        return parent::_list($db);
+        if (isset($get['date']) && $get['date'] !== '') {
+            list($start, $end) = explode(' - ', $get['date']);
+            $db->whereBetween('login_at', ["{$start} 00:00:00", "{$end} 23:59:59"]);
+        }
+        return parent::_list($db->where(['is_deleted' => '0']));
     }
 
     /**
      * 授权管理
      * @return array|string
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     * @throws \think\Exception
      */
     public function auth()
     {
@@ -66,6 +71,11 @@ class User extends BasicAdmin
 
     /**
      * 用户添加
+     * @return array|string
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     * @throws \think\Exception
      */
     public function add()
     {
@@ -74,6 +84,11 @@ class User extends BasicAdmin
 
     /**
      * 用户编辑
+     * @return array|string
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     * @throws \think\Exception
      */
     public function edit()
     {
@@ -82,6 +97,12 @@ class User extends BasicAdmin
 
     /**
      * 用户密码修改
+     * @return array|string
+     * @throws \think\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     * @throws \think\exception\PDOException
      */
     public function pass()
     {
@@ -89,11 +110,12 @@ class User extends BasicAdmin
             $this->assign('verify', false);
             return $this->_form($this->table, 'pass');
         }
-        $data = $this->request->post();
-        if ($data['password'] !== $data['repassword']) {
+        $post = $this->request->post();
+        if ($post['password'] !== $post['repassword']) {
             $this->error('两次输入的密码不一致！');
         }
-        if (DataService::save($this->table, ['id' => $data['id'], 'password' => md5($data['password'])], 'id')) {
+        $data = ['id' => $post['id'], 'password' => md5($post['password'])];
+        if (DataService::save($this->table, $data, 'id')) {
             $this->success('密码修改成功，下次请使用新密码登录！', '');
         }
         $this->error('密码修改失败，请稍候再试！');
@@ -102,6 +124,9 @@ class User extends BasicAdmin
     /**
      * 表单数据默认处理
      * @param array $data
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function _form_filter(&$data)
     {
@@ -111,17 +136,19 @@ class User extends BasicAdmin
             }
             if (isset($data['id'])) {
                 unset($data['username']);
-            } elseif (Db::name($this->table)->where('username', $data['username'])->find()) {
+            } elseif (Db::name($this->table)->where(['username' => $data['username']])->count() > 0) {
                 $this->error('用户账号已经存在，请使用其它账号！');
             }
         } else {
             $data['authorize'] = explode(',', isset($data['authorize']) ? $data['authorize'] : '');
-            $this->assign('authorizes', Db::name('SystemAuth')->select());
+            $this->assign('authorizes', Db::name('SystemAuth')->where(['status' => '1'])->select());
         }
     }
 
     /**
      * 删除用户
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public function del()
     {
@@ -136,6 +163,8 @@ class User extends BasicAdmin
 
     /**
      * 用户禁用
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public function forbid()
     {
@@ -150,6 +179,8 @@ class User extends BasicAdmin
 
     /**
      * 用户禁用
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public function resume()
     {

@@ -1,7 +1,7 @@
 <?php
 
 // +----------------------------------------------------------------------
-// | Think.Admin
+// | ThinkAdmin
 // +----------------------------------------------------------------------
 // | 版权所有 2014~2017 广州楚才信息科技有限公司 [ http://www.cuci.cc ]
 // +----------------------------------------------------------------------
@@ -9,7 +9,7 @@
 // +----------------------------------------------------------------------
 // | 开源协议 ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
-// | github开源项目：https://github.com/zoujingli/Think.Admin
+// | github开源项目：https://github.com/zoujingli/ThinkAdmin
 // +----------------------------------------------------------------------
 
 namespace service;
@@ -20,8 +20,7 @@ use OSS\OssClient;
 use Qiniu\Auth;
 use Qiniu\Storage\BucketManager;
 use Qiniu\Storage\UploadManager;
-use think\Config;
-use think\Log;
+use think\facade\Log;
 
 /**
  * 系统文件服务
@@ -35,20 +34,37 @@ class FileService
 
     /**
      * 根据文件后缀获取文件MINE
-     * @param array $exts 文件后缀
+     * @param array $ext 文件后缀
      * @param array $mine 文件后缀MINE信息
      * @return string
      */
-    public static function getFileMine($exts, $mine = [])
+    public static function getFileMine($ext, $mine = [])
     {
-        $mines = Config::get('mines');
-        foreach (is_string($exts) ? explode(',', $exts) : $exts as $_e) {
-            if (isset($mines[strtolower($_e)])) {
-                $_exinfo = $mines[strtolower($_e)];
-                $mine[] = is_array($_exinfo) ? join(',', $_exinfo) : $_exinfo;
-            }
+        $mines = self::getMines();
+        foreach (is_string($ext) ? explode(',', $ext) : $ext as $e) {
+            $mine[] = isset($mines[strtolower($e)]) ? $mines[strtolower($e)] : 'application/octet-stream';
         }
-        return join(',', $mine);
+        return join(',', array_unique($mine));
+    }
+
+    /**
+     * 获取所有文件扩展的mine
+     * @return mixed
+     */
+    public static function getMines()
+    {
+        $mines = cache('all_ext_mine');
+        if (empty($mines)) {
+            $content = file_get_contents('http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types');
+            preg_match_all('#^([^\s]{2,}?)\s+(.+?)$#ism', $content, $matches, PREG_SET_ORDER);
+            foreach ($matches as $match) {
+                foreach (explode(" ", $match[2]) as $ext) {
+                    $mines[$ext] = $match[1];
+                }
+            }
+            cache('all_ext_mine', $mines);
+        }
+        return $mines;
     }
 
     /**
@@ -56,6 +72,9 @@ class FileService
      * @param string $filename
      * @param string|null $storage
      * @return bool|string
+     * @throws OssException
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function getFileUrl($filename, $storage = null)
     {
@@ -86,6 +105,8 @@ class FileService
      * 根据配置获取到七牛云文件上传目标地址
      * @param bool $isClient
      * @return string
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function getUploadQiniuUrl($isClient = true)
     {
@@ -94,35 +115,38 @@ class FileService
         switch ($region) {
             case '华东':
                 if ($isHttps) {
-                    return $isClient ? 'https://upload.qbox.me' : 'https://up.qbox.me';
+                    return $isClient ? 'https:///upload.qiniup.com' : 'https://upload.qiniup.com';
                 }
-                return $isClient ? 'http://upload.qiniu.com' : 'http://up.qiniu.com';
+                return $isClient ? 'http:///upload.qiniup.com' : 'http://upload.qiniup.com';
             case '华北':
                 if ($isHttps) {
-                    return $isClient ? 'https://upload-z1.qbox.me' : 'https://up-z1.qbox.me';
+                    return $isClient ? 'https://upload-z1.qiniup.com' : 'https://up-z1.qiniup.com';
                 }
-                return $isClient ? 'http://upload-z1.qiniu.com' : 'http://up-z1.qiniu.com';
+                return $isClient ? 'http://upload-z1.qiniup.com' : 'http://up-z1.qiniup.com';
             case '北美':
                 if ($isHttps) {
-                    return $isClient ? 'https://upload-na0.qbox.me' : 'https://up-na0.qbox.me';
+                    return $isClient ? 'https://upload-na0.qiniup.com' : 'https://up-na0.qiniup.com';
                 }
-                return $isClient ? 'http://upload-na0.qiniu.com' : 'http://up-na0.qiniu.com';
+                return $isClient ? 'http://upload-na0.qiniup.com' : 'http://up-na0.qiniup.com';
             case '华南':
             default:
                 if ($isHttps) {
-                    return $isClient ? 'https://upload-z2.qbox.me' : 'https://up-z2.qbox.me';
+                    return $isClient ? 'https://upload-z2.qiniup.com' : 'https://up-z2.qiniup.com';
                 }
-                return $isClient ? 'http://upload-z2.qiniu.com' : 'http://up-z2.qiniu.com';
+                return $isClient ? 'http://upload-z2.qiniup.com' : 'http://up-z2.qiniup.com';
         }
     }
 
     /**
      * 获取AliOSS上传地址
      * @return string
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function getUploadOssUrl()
     {
-        return (request()->isSsl() ? 'https' : 'http') . '://' . sysconf('storage_oss_domain');
+        $protocol = request()->isSsl() ? 'https' : 'http';
+        return "{$protocol}://" . sysconf('storage_oss_domain');
     }
 
     /**
@@ -131,43 +155,58 @@ class FileService
      */
     public static function getBaseUriLocal()
     {
-        $request = request();
-        $base = $request->root();
-        $root = strpos($base, '.') ? ltrim(dirname($base), DS) : $base;
-        if ('' != $root) {
-            $root = '/' . ltrim($root, '/');
-        }
-        return ($request->isSsl() ? 'https' : 'http') . '://' . $request->host() . "{$root}/static/upload/";
+        $appRoot = request()->root(true);
+        $uriRoot = preg_match('/\.php$/', $appRoot) ? dirname($appRoot) : $appRoot;
+        return "{$uriRoot}/static/upload/";
     }
 
     /**
      * 获取七牛云URL前缀
      * @return string
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function getBaseUriQiniu()
     {
-        return (sysconf('storage_qiniu_is_https') ? 'https' : 'http') . '://' . sysconf('storage_qiniu_domain') . '/';
+        switch (strtolower(sysconf('storage_qiniu_is_https'))) {
+            case 'https':
+                return 'https://' . sysconf('storage_qiniu_domain') . '/';
+            case 'http':
+                return 'http://' . sysconf('storage_qiniu_domain') . '/';
+            default:
+                return '//' . sysconf('storage_qiniu_domain') . '/';
+        }
     }
 
     /**
-     * 获取AliOss URL前缀
+     * 获取阿里云对象存储URL前缀
      * @return string
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function getBaseUriOss()
     {
-        return (sysconf('storage_oss_is_https') ? 'https' : 'http') . '://' . sysconf('storage_oss_domain') . '/';
+        switch (strtolower(sysconf('storage_oss_is_https'))) {
+            case 'https':
+                return 'https://' . sysconf('storage_oss_domain') . '/';
+            case 'http':
+                return 'http://' . sysconf('storage_oss_domain') . '/';
+            default:
+                return '//' . sysconf('storage_oss_domain') . '/';
+        }
     }
 
     /**
      * 获取文件相对名称
-     * @param string $source 文件标识
+     * @param string $local_url 文件标识
      * @param string $ext 文件后缀
-     * @param string $pre 文件前缀
+     * @param string $pre 文件前缀（若有值需要以/结尾）
      * @return string
      */
-    public static function getFileName($source, $ext = '', $pre = '')
+    public static function getFileName($local_url, $ext = '', $pre = '')
     {
-        return $pre . join('/', str_split(md5($source), 16)) . '.' . $ext;
+        empty($ext) && $ext = strtolower(pathinfo($local_url, 4));
+        return $pre . join('/', str_split(md5($local_url), 16)) . '.' . ($ext ? $ext : 'tmp');
     }
 
     /**
@@ -175,12 +214,15 @@ class FileService
      * @param string $filename
      * @param string|null $storage
      * @return bool
+     * @throws OssException
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function hasFile($filename, $storage = null)
     {
         switch (empty($storage) ? sysconf('storage_type') : $storage) {
             case 'local':
-                return file_exists(ROOT_PATH . 'static/upload/' . $filename);
+                return file_exists(env('root_path') . 'static/upload/' . $filename);
             case 'qiniu':
                 $auth = new Auth(sysconf('storage_qiniu_access_key'), sysconf('storage_qiniu_secret_key'));
                 $bucketMgr = new BucketManager($auth);
@@ -198,15 +240,16 @@ class FileService
      * @param string $filename
      * @param string|null $storage
      * @return string|null
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
+     * @throws OssException
      */
     public static function readFile($filename, $storage = null)
     {
         switch (empty($storage) ? sysconf('storage_type') : $storage) {
             case 'local':
-                $filepath = ROOT_PATH . 'static/upload/' . $filename;
-                if (file_exists($filepath)) {
-                    return file_get_contents($filepath);
-                }
+                $file = env('root_path') . 'static/upload/' . $filename;
+                return file_exists($file) ? file_get_contents($file) : '';
             case 'qiniu':
                 $auth = new Auth(sysconf('storage_qiniu_access_key'), sysconf('storage_qiniu_secret_key'));
                 return file_get_contents($auth->privateDownloadUrl(self::getBaseUriQiniu() . $filename));
@@ -224,6 +267,8 @@ class FileService
      * @param string $content
      * @param string|null $file_storage
      * @return array|false
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function save($filename, $content, $file_storage = null)
     {
@@ -244,14 +289,14 @@ class FileService
     public static function local($filename, $content)
     {
         try {
-            $filepath = ROOT_PATH . 'static/upload/' . $filename;
-            !file_exists(dirname($filepath)) && mkdir(dirname($filepath), '0755', true);
-            if (file_put_contents($filepath, $content)) {
+            $realfile = env('root_path') . 'static/upload/' . $filename;
+            !file_exists(dirname($realfile)) && mkdir(dirname($realfile), 0755, true);
+            if (file_put_contents($realfile, $content)) {
                 $url = pathinfo(request()->baseFile(true), PATHINFO_DIRNAME) . '/static/upload/' . $filename;
-                return ['file' => $filepath, 'hash' => md5_file($filepath), 'key' => "static/upload/{$filename}", 'url' => $url];
+                return ['file' => $realfile, 'hash' => md5_file($realfile), 'key' => "static/upload/{$filename}", 'url' => $url];
             }
         } catch (Exception $err) {
-            Log::error('本地文件存储失败, ' . var_export($err, true));
+            Log::error('本地文件存储失败, ' . $err->getMessage());
         }
         return null;
     }
@@ -261,6 +306,8 @@ class FileService
      * @param string $filename
      * @param string $content
      * @return array|null
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function qiniu($filename, $content)
     {
@@ -269,7 +316,7 @@ class FileService
         $uploadMgr = new UploadManager();
         list($result, $err) = $uploadMgr->put($token, $filename, $content);
         if ($err !== null) {
-            Log::error('七牛云文件上传失败, ' . var_export($err, true));
+            Log::error('七牛云文件上传失败, ' . $err->getMessage());
             return null;
         }
         $result['file'] = $filename;
@@ -282,38 +329,49 @@ class FileService
      * @param string $filename
      * @param string $content
      * @return array|null
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public static function oss($filename, $content)
     {
         try {
-            $ossClient = new OssClient(sysconf('storage_oss_keyid'), sysconf('storage_oss_secret'), self::getBaseUriOss(), true);
+            $endpoint = 'http://' . sysconf('storage_oss_domain');
+            $ossClient = new OssClient(sysconf('storage_oss_keyid'), sysconf('storage_oss_secret'), $endpoint, true);
             $result = $ossClient->putObject(sysconf('storage_oss_bucket'), $filename, $content);
-            return ['file' => $filename, 'hash' => $result['content-md5'], 'key' => $filename, 'url' => $result['oss-request-url']];
+            $baseUrl = explode('://', $result['oss-request-url'])[1];
+            if (strtolower(sysconf('storage_oss_is_https')) === 'http') {
+                $site_url = "http://{$baseUrl}";
+            } elseif (strtolower(sysconf('storage_oss_is_https')) === 'https') {
+                $site_url = "https://{$baseUrl}";
+            } else {
+                $site_url = "//{$baseUrl}";
+            }
+            return ['file' => $filename, 'hash' => $result['content-md5'], 'key' => $filename, 'url' => $site_url];
         } catch (OssException $err) {
-            Log::error('阿里云OSS文件上传失败, ' . var_export($err, true));
-            return null;
+            Log::error('阿里云OSS文件上传失败, ' . $err->getMessage());
         }
+        return null;
     }
 
     /**
      * 下载文件到本地
      * @param string $url 文件URL地址
      * @param bool $isForce 是否强制重新下载文件
-     * @return array|null;
+     * @return array
      */
     public static function download($url, $isForce = false)
     {
         try {
-            $filename = self::getFileName($url, strtolower(pathinfo($url, 4)), 'download/');
+            $filename = self::getFileName($url, '', 'download/');
             if (false === $isForce && ($siteUrl = self::getFileUrl($filename, 'local'))) {
-                $realfile = ROOT_PATH . 'static/upload/' . $filename;
+                $realfile = env('root_path') . 'static/upload/' . $filename;
                 return ['file' => $realfile, 'hash' => md5_file($realfile), 'key' => "static/upload/{$filename}", 'url' => $siteUrl];
             }
             return self::local($filename, file_get_contents($url));
         } catch (\Exception $e) {
-            Log::error("FileService 文件下载失败 [ {$url} ] . {$e->getMessage()}");
-            return null;
+            Log::error("FileService 文件下载失败 [ {$url} ] " . $e->getMessage());
         }
+        return ['url' => $url];
     }
 
 }

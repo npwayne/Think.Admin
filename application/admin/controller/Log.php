@@ -1,7 +1,7 @@
 <?php
 
 // +----------------------------------------------------------------------
-// | Think.Admin
+// | ThinkAdmin
 // +----------------------------------------------------------------------
 // | 版权所有 2014~2017 广州楚才信息科技有限公司 [ http://www.cuci.cc ]
 // +----------------------------------------------------------------------
@@ -9,7 +9,7 @@
 // +----------------------------------------------------------------------
 // | 开源协议 ( https://mit-license.org )
 // +----------------------------------------------------------------------
-// | github开源项目：https://github.com/zoujingli/Think.Admin
+// | github开源项目：https://github.com/zoujingli/ThinkAdmin
 // +----------------------------------------------------------------------
 
 namespace app\admin\controller;
@@ -20,7 +20,7 @@ use think\Db;
 
 /**
  * 系统日志管理
- * Class User
+ * Class Log
  * @package app\admin\controller
  * @author Anyon <zoujingli@qq.com>
  * @date 2017/02/15 18:12
@@ -36,25 +36,34 @@ class Log extends BasicAdmin
 
     /**
      * 日志列表
+     * @return array|string
+     * @throws \think\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
      */
     public function index()
     {
-        $this->title = '系统操作日志';
-        $get = $this->request->get();
+        // 日志行为类别
         $actions = Db::name($this->table)->group('action')->column('action');
+        $this->assign('actions', $actions);
+        // 日志数据库对象
+        list($this->title, $get) = ['系统操作日志', $this->request->get()];
         $db = Db::name($this->table)->order('id desc');
         foreach (['action', 'content', 'username'] as $key) {
-            if (isset($get[$key]) && $get[$key] !== '') {
-                $db->where($key, 'like', "%{$get[$key]}%");
-            }
+            (isset($get[$key]) && $get[$key] !== '') && $db->whereLike($key, "%{$get[$key]}%");
         }
-        $this->assign('actions', $actions);
+        if (isset($get['create_at']) && $get['create_at'] !== '') {
+            list($start, $end) = explode(' - ', $get['create_at']);
+            $db->whereBetween('create_at', ["{$start} 00:00:00", "{$end} 23:59:59"]);
+        }
         return parent::_list($db);
     }
 
     /**
      * 列表数据处理
-     * @param $data
+     * @param array $data
+     * @throws \Exception
      */
     protected function _index_data_filter(&$data)
     {
@@ -62,12 +71,38 @@ class Log extends BasicAdmin
         foreach ($data as &$vo) {
             $result = $ip->btreeSearch($vo['ip']);
             $vo['isp'] = isset($result['region']) ? $result['region'] : '';
-            $vo['isp'] = str_replace(['|0|0|0|0', '0', '|'], ['', '', ' '], $vo['isp']);
+            $vo['isp'] = str_replace(['内网IP', '0', '|'], '', $vo['isp']);
         }
     }
 
     /**
+     * 短信发送记录
+     * @return array|string
+     * @throws \think\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\ModelNotFoundException
+     * @throws \think\exception\DbException
+     */
+    public function sms()
+    {
+        // 日志数据库对象
+        $this->title = '短信发送日志';
+        $get = $this->request->get();
+        $db = Db::name('MemberSmsHistory');
+        foreach (['phone', 'content', 'result'] as $key) {
+            (isset($get[$key]) && $get[$key] !== '') && $db->whereLike($key, "%{$get[$key]}%");
+        }
+        if (isset($get['date']) && $get['date'] !== '') {
+            list($start, $end) = explode(' - ', $get['date']);
+            $db->whereBetween('create_at', ["{$start} 00:00:00", "{$end} 23:59:59"]);
+        }
+        return parent::_list($db->order('id desc'));
+    }
+
+    /**
      * 日志删除操作
+     * @throws \think\Exception
+     * @throws \think\exception\PDOException
      */
     public function del()
     {
