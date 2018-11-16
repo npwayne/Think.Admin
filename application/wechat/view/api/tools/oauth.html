@@ -38,7 +38,7 @@
     </div>
     <div class="weui-cell">
         <div class="weui-cell__bd">UNIONID</div>
-        <div class="weui-cell__ft" style="font-size:0.6rem">{$fans.fansinfo.unionid}</div>
+        <div class="weui-cell__ft" style="font-size:0.6rem">{$fans.fansinfo.unionid|default='未获取到'}</div>
     </div>
 </div>
 <div class="weui-cells__title">详细资料</div>
@@ -58,7 +58,7 @@
     {if isset($fans.fansinfo.privilege.0)}
     <div class="weui-cell">
         <div class="weui-cell__bd">设备网络</div>
-        <div class="weui-cell__ft">{$fans.fansinfo.privilege.0}</div>
+        <div class="weui-cell__ft">{$fans.fansinfo.privilege.0|default='未获取到网络信息'}</div>
     </div>
     {/if}
 </div>

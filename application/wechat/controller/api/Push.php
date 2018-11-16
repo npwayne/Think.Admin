@@ -49,7 +49,7 @@ class Push
     protected $receive;
 
     /**
-     * 微信消息接口（通过ThinkService推送）
+     * 微信消息接口（来自ThinkService授权的消息推送）
      * @return string
      * @throws \think\Exception
      * @throws \think\exception\PDOException
@@ -61,35 +61,34 @@ class Push
         $this->openid = $request->post('openid', '', null);
         $this->receive = unserialize($request->post('receive', '', null));
         if (empty($this->appid) || empty($this->openid) || empty($this->receive)) {
-            throw new Exception('微信API实例缺失必要参数[appid,openid,event].');
+            throw new Exception('微信API实例缺失必要参数[appid,openid,receive].');
         }
-        return $this->call($this->appid, $this->openid, $this->receive);
+        return $this->init();
     }
 
     /**
-     * 公众号直接对接（通过参数对接推送）
+     * 微信消息接口（来自在公众号官方的消息推送）
      * @return string
      * @throws \think\Exception
      * @throws \think\exception\PDOException
      */
     public function notify()
     {
-        $wechat = WechatService::receive();
-        return $this->call(WechatService::getAppid(), $wechat->getOpenid(), $wechat->getReceive());
+        $wechat = WechatService::WeChatReceive();
+        $this->openid = $wechat->getOpenid();
+        $this->receive = $wechat->getReceive();
+        $this->appid = WechatService::getAppid();
+        return $this->init();
     }
 
     /**
      * 初始化接口
-     * @param string $appid 公众号APPID
-     * @param string $openid 公众号OPENID
-     * @param array $revice 消息对象
      * @return string
-     * @throws \think\Exception
+     * @throws Exception
      * @throws \think\exception\PDOException
      */
-    protected function call($appid, $openid, $revice)
+    private function init()
     {
-        list($this->appid, $this->openid, $this->receive) = [$appid, $openid, $revice];
         if ($this->appid !== WechatService::getAppid()) {
             throw new Exception('微信API实例APPID验证失败.');
         }
@@ -252,7 +251,7 @@ class Push
         $msgData = ['touser' => $this->openid, 'msgtype' => $type, "{$type}" => $data];
         switch (strtolower(sysconf('wechat_type'))) {
             case 'api': // 参数对接，直接回复XML来实现消息回复
-                $wechat = WechatService::receive();
+                $wechat = WechatService::WeChatReceive();
                 switch (strtolower($type)) {
                     case 'text':
                         return $wechat->text($data['content'])->reply([], true);
@@ -265,15 +264,19 @@ class Push
                     case 'music':
                         return $wechat->music($data['title'], $data['description'], $data['musicurl'], $data['hqmusicurl'], $data['thumb_media_id'])->reply([], true);
                     case 'news':
-                        return $wechat->news($data['articles'])->reply([], true);
+                        $articles = [];
+                        foreach ($data['articles'] as $article) {
+                            $articles[] = ['Url' => $article['url'], 'Title' => $article['title'], 'PicUrl' => $article['picurl'], 'Description' => $article['description']];
+                        }
+                        return $wechat->news($articles)->reply([], true);
                     case 'customservice':
-                        WechatService::custom()->send(['touser' => $this->openid, 'msgtype' => 'text', "text" => $data['content']]);
+                        WechatService::WeChatCustom()->send(['touser' => $this->openid, 'msgtype' => 'text', "text" => $data['content']]);
                         return $wechat->transferCustomerService()->reply([], true);
                     default:
                         return 'success';
                 }
             case 'thr': // 第三方平台，使用客服消息来实现
-                return WechatService::custom()->send($msgData);
+                return WechatService::WeChatCustom()->send($msgData);
             default:
                 return 'success';
         }
@@ -281,7 +284,7 @@ class Push
 
     /**
      * 更新推荐二维码关系
-     * @param string $key
+     * @param string $openid
      * @return bool
      * @throws \think\Exception
      * @throws \think\db\exception\DataNotFoundException
@@ -289,10 +292,10 @@ class Push
      * @throws \think\exception\DbException
      * @throws \think\exception\PDOException
      */
-    protected function updateSpread($key)
+    protected function updateSpread($openid)
     {
         // 检测推荐是否有效
-        $fans = Db::name('WechatFans')->where(['openid' => $key])->find();
+        $fans = Db::name('WechatFans')->where('openid', $openid)->find();
         if (empty($fans['openid']) || $fans['openid'] === $this->openid) {
             return false;
         }
@@ -314,12 +317,12 @@ class Push
     protected function updateFansinfo($subscribe = true)
     {
         if ($subscribe) {
-            $userInfo = WechatService::user()->getUserInfo($this->openid);
+            $userInfo = WechatService::WeChatUser()->getUserInfo($this->openid);
             $userInfo['subscribe'] = intval($subscribe);
             FansService::set($userInfo);
         } else {
             $fans = ['subscribe' => '0', 'openid' => $this->openid, 'appid' => $this->appid];
-            DataService::save('WechatFans', $fans, 'openid', ['appid' => $this->appid]);
+            DataService::save('WechatFans', $fans, 'openid', [['appid', 'eq', $this->appid]]);
         }
     }
 

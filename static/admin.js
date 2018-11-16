@@ -186,7 +186,7 @@ $(function () {
         };
         // 打开一个iframe窗口
         this.iframe = function (url, title) {
-            return layer.open({title: title || '窗口', type: 2, area: ['800px', '530px'], fix: true, maxmin: false, content: url});
+            return layer.open({title: title || '窗口', type: 2, area: ['800px', '550px'], fix: true, maxmin: false, content: url});
         };
         // 加载HTML到弹出层
         this.modal = function (url, data, title, callback, loading, tips) {
@@ -616,7 +616,7 @@ $(function () {
 
     /*! 注册 data-tips-image 事件行为 */
     $body.on('click', '[data-tips-image]', function () {
-        var img = new Image(), src = this.getAttribute('data-tips-image') || this.src;
+        var img = new Image(), index = $.msg.loading();
         var imgWidth = this.getAttribute('data-width') || '480px';
         img.onload = function () {
             var $content = $(img).appendTo('body').css({background: '#fff', width: imgWidth, height: 'auto'});
@@ -625,10 +625,16 @@ $(function () {
                 skin: 'layui-layer-nobg', shadeClose: true, content: $content,
                 end: function () {
                     $(img).remove();
+                },
+                success: function () {
+                    $.msg.close(index);
                 }
             });
         };
-        img.src = src;
+        img.onerror = function (e) {
+            $.msg.close(index);
+        };
+        img.src = this.getAttribute('data-tips-image') || this.src;
     });
 
     /*! 注册 data-tips-text 事件行为 */

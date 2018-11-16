@@ -2,17 +2,18 @@
 
 {block name="button"}
 <!--{if auth("$classuri/add")}-->
-<button data-modal='{:url("$classuri/add")}' data-title="添加用户" class='layui-btn layui-btn-sm'>添加用户</button>
+<button data-modal='{:url("$classuri/add")}' data-title="添加用户" class='layui-btn layui-btn-sm layui-btn-primary'>添加用户</button>
 <!--{/if}-->
+
 <!--{if auth("$classuri/del")}-->
-<button data-update data-field='delete' data-action='{:url("$classuri/del")}' class='layui-btn layui-btn-sm layui-btn-danger'>删除用户</button>
+<button data-update data-field='delete' data-action='{:url("$classuri/del")}' class='layui-btn layui-btn-sm layui-btn-primary'>删除用户</button>
 <!--{/if}-->
 {/block}
 
 {block name="content"}
 
 <!-- 表单搜索 开始 -->
-<form class="layui-form layui-form-pane form-search" action="{:request()->url()}" onsubmit="return false" method="get">
+<form autocomplete="off" class="layui-form layui-form-pane form-search" action="{:request()->url()}" onsubmit="return false" method="get">
 
     <div class="layui-form-item layui-inline">
         <label class="layui-form-label">用户账号</label>
@@ -60,7 +61,7 @@
     <table class="layui-table" lay-skin="line">
         <thead>
         <tr>
-            <th class='list-table-check-td'>
+            <th class='list-table-check-td think-checkbox'>
                 <input data-auto-none="" data-check-target='.list-check-box' type='checkbox'>
             </th>
             <th class='text-left nowrap'>用户名</th>
@@ -75,7 +76,7 @@
         <tbody>
         <!--{foreach $list as $key=>$vo}-->
         <tr>
-            <td class='list-table-check-td'>
+            <td class='list-table-check-td think-checkbox'>
                 <input class="list-check-box" value='{$vo.id}' type='checkbox'>
             </td>
             <td class='text-left nowrap'>
@@ -87,9 +88,7 @@
             <td class='text-left nowrap'>
                 {$vo.mail|default="<span class='color-desc'>还没有设置邮箱</span>"|raw}
             </td>
-            <td class='text-left nowrap'>
-                {$vo.login_num|default="<span class='color-desc'>从未登录</span>"|raw}
-            </td>
+            <td class='text-left nowrap'>{$vo.login_num|default=0}</td>
             <td class='text-left nowrap'>
                 {$vo.login_at|format_datetime|default="<span class='color-desc'>从未登录</span>"|raw}
             </td>

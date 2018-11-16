@@ -73,7 +73,7 @@ class NodeService
     public static function checkAuthNode($node)
     {
         list($module, $controller, $action) = explode('/', str_replace(['?', '=', '&'], '/', $node . '///'));
-        $currentNode = strtolower(trim("{$module}/{$controller}/{$action}", '/'));
+        $currentNode = self::parseNodeStr("{$module}/{$controller}") . strtolower("/{$action}");
         if (session('user.username') === 'admin' || stripos($node, 'admin/index') === 0) {
             return true;
         }
@@ -124,16 +124,28 @@ class NodeService
                 continue;
             }
             $className = env('app_namespace') . str_replace('/', '\\', $matches[0]);
-            if (!class_exists($className)) {
-                continue;
-            }
+            if (!class_exists($className)) continue;
             foreach (get_class_methods($className) as $funcName) {
-                if (strpos($funcName, '_') !== 0 && $funcName !== 'initialize') {
-                    $nodes[] = strtolower("{$matches[1]}/{$matches[2]}/{$funcName}");
+                if (strpos($funcName, '_') !== 0 && $funcName !== 'initialize' && $funcName !== 'registerMiddleware') {
+                    $nodes[] = self::parseNodeStr("{$matches[1]}/{$matches[2]}") . '/' . strtolower($funcName);
                 }
             }
         }
         return $nodes;
+    }
+
+    /**
+     * 驼峰转下划线规则
+     * @param string $node
+     * @return string
+     */
+    public static function parseNodeStr($node)
+    {
+        $tmp = [];
+        foreach (explode('/', $node) as $name) {
+            $tmp[] = strtolower(trim(preg_replace("/[A-Z]/", "_\\0", $name), "_"));
+        }
+        return trim(join('/', $tmp), '/');
     }
 
     /**
