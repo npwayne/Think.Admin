@@ -11,17 +11,12 @@
 
 namespace think;
 
+use think\exception\ClassNotFoundException;
 use think\model\Collection as ModelCollection;
 use think\response\Redirect;
 
 class Debug
 {
-    /**
-     * 配置参数
-     * @var array
-     */
-    protected $config = [];
-
     /**
      * 区间时间信息
      * @var array
@@ -40,20 +35,9 @@ class Debug
      */
     protected $app;
 
-    public function __construct(App $app, array $config = [])
+    public function __construct(App $app)
     {
-        $this->app    = $app;
-        $this->config = $config;
-    }
-
-    public static function __make(App $app, Config $config)
-    {
-        return new static($app, $config->pull('trace'));
-    }
-
-    public function setConfig(array $config)
-    {
-        $this->config = array_merge($this->config, $config);
+        $this->app = $app;
     }
 
     /**
@@ -245,12 +229,16 @@ class Debug
 
     public function inject(Response $response, &$content)
     {
-        $config = $this->config;
+        $config = $this->app['config']->pull('trace');
         $type   = isset($config['type']) ? $config['type'] : 'Html';
-
+        $class  = false !== strpos($type, '\\') ? $type : '\\think\\debug\\' . ucwords($type);
         unset($config['type']);
 
-        $trace = Loader::factory($type, '\\think\\debug\\', $config);
+        if (class_exists($class)) {
+            $trace = new $class($config);
+        } else {
+            throw new ClassNotFoundException('class not exists:' . $class, $class);
+        }
 
         if ($response instanceof Redirect) {
             //TODO 记录
@@ -266,13 +254,5 @@ class Debug
                 }
             }
         }
-    }
-
-    public function __debugInfo()
-    {
-        $data = get_object_vars($this);
-        unset($data['app']);
-
-        return $data;
     }
 }

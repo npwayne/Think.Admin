@@ -17,7 +17,23 @@ use think\Route;
 
 class RuleItem extends Rule
 {
-    protected $hasSetRule;
+    /**
+     * 路由规则
+     * @var string
+     */
+    protected $rule;
+
+    /**
+     * 路由地址
+     * @var string|\Closure
+     */
+    protected $route;
+
+    /**
+     * 请求类型
+     * @var string
+     */
+    protected $method;
 
     /**
      * 架构函数
@@ -26,8 +42,8 @@ class RuleItem extends Rule
      * @param  RuleGroup         $parent 上级对象
      * @param  string            $name 路由标识
      * @param  string|array      $rule 路由规则
-     * @param  string|\Closure   $route 路由地址
      * @param  string            $method 请求类型
+     * @param  string|\Closure   $route 路由地址
      * @param  array             $option 路由参数
      * @param  array             $pattern 变量规则
      */
@@ -80,6 +96,36 @@ class RuleItem extends Rule
     }
 
     /**
+     * 获取当前路由规则
+     * @access public
+     * @return string
+     */
+    public function getRule()
+    {
+        return $this->rule;
+    }
+
+    /**
+     * 获取当前路由地址
+     * @access public
+     * @return mixed
+     */
+    public function getRoute()
+    {
+        return $this->route;
+    }
+
+    /**
+     * 获取当前路由的请求类型
+     * @access public
+     * @return string
+     */
+    public function getMethod()
+    {
+        return strtolower($this->method);
+    }
+
+    /**
      * 检查后缀
      * @access public
      * @param  string     $ext
@@ -127,14 +173,9 @@ class RuleItem extends Rule
                 $suffix = null;
             }
 
-            $value = [$this->rule, $vars, $this->parent->getDomain(), $suffix, $this->method];
+            $value = [$this->rule, $vars, $this->parent->getDomain(), $suffix];
 
             Container::get('rule_name')->set($name, $value, $first);
-        }
-
-        if (!$this->hasSetRule) {
-            Container::get('rule_name')->setRule($this->rule, $this);
-            $this->hasSetRule = true;
         }
     }
 
@@ -144,10 +185,11 @@ class RuleItem extends Rule
      * @param  Request      $request  请求对象
      * @param  string       $url      访问地址
      * @param  array        $match    匹配路由变量
+     * @param  string       $depr     路径分隔符
      * @param  bool         $completeMatch   路由是否完全匹配
      * @return Dispatch|false
      */
-    public function checkRule($request, $url, $match = null, $completeMatch = false)
+    public function checkRule($request, $url, $match = null, $depr = '/', $completeMatch = false)
     {
         if ($dispatch = $this->checkCrossDomain($request)) {
             // 允许跨域
@@ -162,18 +204,18 @@ class RuleItem extends Rule
         // 合并分组参数
         $option = $this->mergeGroupOptions();
 
+        // 检查前置行为
+        if (isset($option['before']) && false === $this->checkBefore($option['before'])) {
+            return false;
+        }
+
         $url = $this->urlSuffixCheck($request, $url, $option);
 
         if (is_null($match)) {
-            $match = $this->match($url, $option, $completeMatch);
+            $match = $this->match($url, $option, $depr, $completeMatch);
         }
 
         if (false !== $match) {
-            // 检查前置行为
-            if (isset($option['before']) && false === $this->checkBefore($option['before'])) {
-                return false;
-            }
-
             return $this->parseRule($request, $this->rule, $this->route, $url, $option, $match);
         }
 
@@ -189,9 +231,9 @@ class RuleItem extends Rule
      * @param  bool         $completeMatch   路由是否完全匹配
      * @return Dispatch|false
      */
-    public function check($request, $url, $completeMatch = false)
+    public function check($request, $url, $depr = '/', $completeMatch = false)
     {
-        return $this->checkRule($request, $url, null, $completeMatch);
+        return $this->checkRule($request, $url, null, $depr, $completeMatch);
     }
 
     /**
@@ -223,17 +265,17 @@ class RuleItem extends Rule
      * @access private
      * @param  string    $url URL地址
      * @param  array     $option    路由参数
+     * @param  string    $depr URL分隔符（全局）
      * @param  bool      $completeMatch   路由是否完全匹配
      * @return array|false
      */
-    private function match($url, $option, $completeMatch)
+    private function match($url, $option, $depr, $completeMatch)
     {
         if (isset($option['complete_match'])) {
             $completeMatch = $option['complete_match'];
         }
 
         $pattern = array_merge($this->parent->getPattern(), $this->pattern);
-        $depr    = $this->router->config('pathinfo_depr');
 
         // 检查完整规则定义
         if (isset($pattern['__url__']) && !preg_match(0 === strpos($pattern['__url__'], '/') ? $pattern['__url__'] : '/^' . $pattern['__url__'] . '/', str_replace('|', $depr, $url))) {
@@ -249,7 +291,7 @@ class RuleItem extends Rule
         }
 
         if (false === strpos($rule, '<')) {
-            if (0 === strcasecmp($rule, $url) || (!$completeMatch && 0 === strncasecmp($rule . $depr, $url . $depr, strlen($rule . $depr)))) {
+            if (0 === strcasecmp($rule, $url) || (!$completeMatch && 0 === strncasecmp($rule, $url, strlen($rule)))) {
                 return $var;
             }
             return false;

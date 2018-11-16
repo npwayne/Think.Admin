@@ -18,125 +18,63 @@ use think\exception\HttpResponseException;
 class Middleware
 {
     protected $queue = [];
-    protected $app;
-    protected $config = [
-        'default_namespace' => 'app\\http\\middleware\\',
-    ];
 
-    public function __construct(App $app, array $config = [])
-    {
-        $this->app    = $app;
-        $this->config = array_merge($this->config, $config);
-    }
-
-    public static function __make(App $app, Config $config)
-    {
-        return new static($app, $config->pull('middleware'));
-    }
-
-    public function setConfig(array $config)
-    {
-        $this->config = array_merge($this->config, $config);
-    }
-
-    /**
-     * 导入中间件
-     * @access public
-     * @param  array  $middlewares
-     * @param  string $type  中间件类型
-     */
-    public function import(array $middlewares = [], $type = 'route')
+    public function import(array $middlewares = [])
     {
         foreach ($middlewares as $middleware) {
-            $this->add($middleware, $type);
+            $this->add($middleware);
         }
     }
 
     /**
-     * 注册中间件
-     * @access public
-     * @param  mixed  $middleware
-     * @param  string $type  中间件类型
+     * {@inheritdoc}
      */
-    public function add($middleware, $type = 'route')
+    public function add($middleware)
     {
         if (is_null($middleware)) {
             return;
         }
 
-        $middleware = $this->buildMiddleware($middleware, $type);
+        $middleware = $this->buildMiddleware($middleware);
 
         if ($middleware) {
-            $this->queue[$type][] = $middleware;
+            $this->queue[] = $middleware;
         }
     }
 
     /**
-     * 注册控制器中间件
-     * @access public
-     * @param  mixed  $middleware
+     * {@inheritdoc}
      */
-    public function controller($middleware)
-    {
-        return $this->add($middleware, 'controller');
-    }
-
-    /**
-     * 移除中间件
-     * @access public
-     * @param  mixed  $middleware
-     * @param  string $type  中间件类型
-     */
-    public function unshift($middleware, $type = 'route')
+    public function unshift($middleware)
     {
         if (is_null($middleware)) {
             return;
         }
 
-        $middleware = $this->buildMiddleware($middleware, $type);
+        $middleware = $this->buildMiddleware($middleware);
 
         if ($middleware) {
-            array_unshift($this->queue[$type], $middleware);
+            array_unshift($this->queue, $middleware);
         }
     }
 
     /**
-     * 获取注册的中间件
-     * @access public
-     * @param  string $type  中间件类型
+     * {@inheritdoc}
      */
-    public function all($type = 'route')
+    public function all()
     {
-        return $this->queue[$type] ?: [];
+        return $this->queue;
     }
 
     /**
-     * 清除中间件
-     * @access public
+     * {@inheritdoc}
      */
-    public function clear()
+    public function dispatch(Request $request)
     {
-        $this->queue = [];
+        return call_user_func($this->resolve(), $request);
     }
 
-    /**
-     * 中间件调度
-     * @access public
-     * @param  Request  $request
-     * @param  string   $type  中间件类型
-     */
-    public function dispatch(Request $request, $type = 'route')
-    {
-        return call_user_func($this->resolve($type), $request);
-    }
-
-    /**
-     * 解析中间件
-     * @access protected
-     * @param  mixed  $middleware
-     * @param  string $type  中间件类型
-     */
-    protected function buildMiddleware($middleware, $type = 'route')
+    protected function buildMiddleware($middleware)
     {
         if (is_array($middleware)) {
             list($middleware, $param) = $middleware;
@@ -151,29 +89,25 @@ class Middleware
         }
 
         if (false === strpos($middleware, '\\')) {
-            if (isset($this->config[$middleware])) {
-                $middleware = $this->config[$middleware];
-            } else {
-                $middleware = $this->config['default_namespace'] . $middleware;
-            }
+            $value      = Container::get('config')->get('middleware.' . $middleware);
+            $middleware = $value ?: Container::get('app')->getNamespace() . '\\http\\middleware\\' . $middleware;
         }
 
         if (is_array($middleware)) {
-            return $this->import($middleware, $type);
+            return $this->import($middleware);
         }
 
         if (strpos($middleware, ':')) {
             list($middleware, $param) = explode(':', $middleware, 2);
         }
 
-        return [[$this->app->make($middleware), 'handle'], isset($param) ? $param : null];
+        return [[Container::get($middleware), 'handle'], isset($param) ? $param : null];
     }
 
-    protected function resolve($type = 'route')
+    protected function resolve()
     {
-        return function (Request $request) use ($type) {
-
-            $middleware = array_shift($this->queue[$type]);
+        return function (Request $request) {
+            $middleware = array_shift($this->queue);
 
             if (null === $middleware) {
                 throw new InvalidArgumentException('The queue was exhausted, with no response returned');
@@ -182,7 +116,7 @@ class Middleware
             list($call, $param) = $middleware;
 
             try {
-                $response = call_user_func_array($call, [$request, $this->resolve($type), $param]);
+                $response = call_user_func_array($call, [$request, $this->resolve(), $param]);
             } catch (HttpResponseException $exception) {
                 $response = $exception->getResponse();
             }
@@ -195,11 +129,4 @@ class Middleware
         };
     }
 
-    public function __debugInfo()
-    {
-        $data = get_object_vars($this);
-        unset($data['app']);
-
-        return $data;
-    }
 }

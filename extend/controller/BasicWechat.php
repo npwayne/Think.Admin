@@ -14,10 +14,8 @@
 
 namespace controller;
 
-use app\store\service\MemberService;
 use service\WechatService;
 use think\Controller;
-use think\Db;
 
 /**
  * 微信基础控制器
@@ -34,29 +32,6 @@ class BasicWechat extends Controller
     protected $openid;
 
     /**
-     * 当前会员数据记录
-     * @var array
-     */
-    protected $member = [];
-
-    /**
-     * 初始化会员数据记录
-     * @throws \think\Exception
-     * @throws \think\exception\PDOException
-     * @return array
-     */
-    protected function initMember()
-    {
-        $openid = $this->getOpenid();
-        $this->member = Db::name('StoreMember')->where(['openid' => $openid])->find();
-        if (empty($this->member)) {
-            MemberService::create(['openid' => $openid]);
-            $this->member = Db::name('StoreMember')->where(['openid' => $openid])->find();
-        }
-        return $this->member;
-    }
-
-    /**
      * 获取粉丝用户OPENID
      * @return bool|string
      * @throws \think\Exception
@@ -64,8 +39,7 @@ class BasicWechat extends Controller
      */
     protected function getOpenid()
     {
-        $url = $this->request->url(true);
-        return WechatService::webOauth($url, 0)['openid'];
+        return WechatService::webOauth(0)['openid'];
     }
 
     /**
@@ -77,8 +51,7 @@ class BasicWechat extends Controller
      */
     protected function getFansinfo()
     {
-        $url = $this->request->url(true);
-        return WechatService::webOauth($url, 1)['fansinfo'];
+        return WechatService::webOauth(1)['fansinfo'];
     }
 
 }

@@ -32,17 +32,6 @@ class Hook
     private static $portal = 'run';
 
     /**
-     * 应用对象
-     * @var App
-     */
-    protected $app;
-
-    public function __construct(App $app)
-    {
-        $this->app = $app;
-    }
-
-    /**
      * 指定入口方法名称
      * @access public
      * @param  string  $name     方法名
@@ -174,7 +163,7 @@ class Hook
             $method = [$class, self::$portal];
         }
 
-        return $this->app->invoke($method, [$params]);
+        return Container::getInstance()->invoke($method, [$params]);
     }
 
     /**
@@ -187,12 +176,16 @@ class Hook
      */
     protected function execTag($class, $tag = '', $params = null)
     {
+        $app = Container::get('app');
+
+        $app->isDebug() && $app['debug']->remark('behavior_start', 'time');
+
         $method = Loader::parseName($tag, 1, false);
 
         if ($class instanceof \Closure) {
             $call  = $class;
             $class = 'Closure';
-        } elseif (is_array($class) || strpos($class, '::')) {
+        } elseif (strpos($class, '::')) {
             $call = $class;
         } else {
             $obj = Container::get($class);
@@ -205,16 +198,15 @@ class Hook
             $class = $class . '->' . $method;
         }
 
-        $result = $this->app->invoke($call, [$params]);
+        $result = Container::getInstance()->invoke($call, [$params]);
+
+        if ($app->isDebug()) {
+            $debug = $app['debug'];
+            $debug->remark('behavior_end', 'time');
+            $app->log('[ BEHAVIOR ] Run ' . $class . ' @' . $tag . ' [ RunTime:' . $debug->getRangeTime('behavior_start', 'behavior_end') . 's ]');
+        }
 
         return $result;
     }
 
-    public function __debugInfo()
-    {
-        $data = get_object_vars($this);
-        unset($data['app']);
-
-        return $data;
-    }
 }

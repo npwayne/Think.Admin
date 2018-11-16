@@ -33,10 +33,6 @@ class HasMany extends Relation
         $this->foreignKey = $foreignKey;
         $this->localKey   = $localKey;
         $this->query      = (new $model)->db();
-
-        if (get_class($parent) == $model) {
-            $this->selfRelation = true;
-        }
     }
 
     /**
@@ -152,27 +148,22 @@ class HasMany extends Relation
      * @param  \Closure $closure 闭包
      * @param  string   $aggregate 聚合查询方法
      * @param  string   $field 字段
-     * @param  string   $name 统计字段别名
      * @return integer
      */
-    public function relationCount($result, $closure, $aggregate = 'count', $field = '*', &$name = '')
+    public function relationCount($result, $closure, $aggregate = 'count', $field = '*')
     {
         $localKey = $this->localKey;
+        $count    = 0;
 
-        if (!isset($result->$localKey)) {
-            return 0;
-        }
-
-        if ($closure) {
-            $return = $closure($this->query);
-            if ($return && is_string($return)) {
-                $name = $return;
+        if (isset($result->$localKey)) {
+            if ($closure) {
+                $closure($this->query);
             }
+
+            $count = $this->query->where($this->foreignKey, '=', $result->$localKey)->$aggregate($field);
         }
 
-        return $this->query
-            ->where($this->foreignKey, '=', $result->$localKey)
-            ->$aggregate($field);
+        return $count;
     }
 
     /**
@@ -181,21 +172,16 @@ class HasMany extends Relation
      * @param  \Closure $closure 闭包
      * @param  string   $aggregate 聚合查询方法
      * @param  string   $field 字段
-     * @param  string   $aggregateAlias 聚合字段别名
      * @return string
      */
-    public function getRelationCountQuery($closure, $aggregate = 'count', $field = '*', &$aggregateAlias = '')
+    public function getRelationCountQuery($closure, $aggregate = 'count', $field = '*')
     {
         if ($closure) {
-            $return = $closure($this->query);
-
-            if ($return && is_string($return)) {
-                $aggregateAlias = $return;
-            }
+            $closure($this->query);
         }
 
         return $this->query
-            ->whereExp($this->foreignKey, '=' . $this->parent->getTable() . '.' . $this->localKey)
+            ->whereExp($this->foreignKey, '=' . $this->parent->getTable() . '.' . $this->parent->getPk())
             ->fetchSql()
             ->$aggregate($field);
     }
@@ -203,13 +189,13 @@ class HasMany extends Relation
     /**
      * 一对多 关联模型预查询
      * @access public
-     * @param  array    $where       关联预查询条件
-     * @param  string   $relation    关联名
-     * @param  string   $subRelation 子关联
-     * @param  \Closure $closure
+     * @param  array  $where       关联预查询条件
+     * @param  string $relation    关联名
+     * @param  string $subRelation 子关联
+     * @param  bool   $closure
      * @return array
      */
-    protected function eagerlyOneToMany($where, $relation, $subRelation = '', $closure = null)
+    protected function eagerlyOneToMany($where, $relation, $subRelation = '', $closure = false)
     {
         $foreignKey = $this->foreignKey;
 
@@ -235,11 +221,10 @@ class HasMany extends Relation
     /**
      * 保存（新增）当前关联数据对象
      * @access public
-     * @param  mixed    $data       数据 可以使用数组 关联模型对象 和 关联对象的主键
-     * @param  boolean  $replace    是否自动识别更新和写入
+     * @param  mixed $data 数据 可以使用数组 关联模型对象 和 关联对象的主键
      * @return Model|false
      */
-    public function save($data, $replace = true)
+    public function save($data)
     {
         if ($data instanceof Model) {
             $data = $data->getData();
@@ -250,22 +235,21 @@ class HasMany extends Relation
 
         $model = new $this->model;
 
-        return $model->replace($replace)->save($data) ? $model : false;
+        return $model->save($data) ? $model : false;
     }
 
     /**
      * 批量保存当前关联数据对象
      * @access public
-     * @param  array $dataSet   数据集
-     * @param  boolean $replace 是否自动识别更新和写入
+     * @param  array $dataSet 数据集
      * @return array|false
      */
-    public function saveAll(array $dataSet, $replace = true)
+    public function saveAll(array $dataSet)
     {
         $result = [];
 
         foreach ($dataSet as $key => $data) {
-            $result[] = $this->save($data, $replace);
+            $result[] = $this->save($data);
         }
 
         return empty($result) ? false : $result;

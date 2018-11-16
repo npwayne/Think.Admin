@@ -51,11 +51,6 @@ class View
         return $this;
     }
 
-    public static function __make(Config $config)
-    {
-        return (new static())->init($config->pull('template'));
-    }
-
     /**
      * 模板变量静态赋值
      * @access public
@@ -72,17 +67,6 @@ class View
         }
 
         return $this;
-    }
-
-    /**
-     * 清理模板变量
-     * @access public
-     * @return void
-     */
-    public function clear()
-    {
-        self::$var  = [];
-        $this->data = [];
     }
 
     /**
@@ -118,11 +102,13 @@ class View
             $type = !empty($options['type']) ? $options['type'] : 'Think';
         }
 
+        $class = false !== strpos($type, '\\') ? $type : '\\think\\view\\driver\\' . ucfirst($type);
+
         if (isset($options['type'])) {
             unset($options['type']);
         }
 
-        $this->engine = Loader::factory($type, '\\think\\view\\driver\\', $options);
+        $this->engine = new $class($options);
 
         return $this;
     }

@@ -20,6 +20,7 @@ use think\facade\Build as AppBuild;
 
 class Build extends Command
 {
+
     /**
      * {@inheritdoc}
      */

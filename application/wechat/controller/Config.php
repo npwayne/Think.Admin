@@ -55,7 +55,6 @@ class Config extends BasicAdmin
             if ($this->request->get('appid', false)) {
                 sysconf('wechat_thr_appid', $data['appid']);
                 sysconf('wechat_thr_appkey', $data['appkey']);
-                sysconf('wechat_type', 'thr');
                 WechatService::config()->setApiNotifyUri($thrNotifyUrl);
             }
             try {
@@ -84,7 +83,7 @@ class Config extends BasicAdmin
             }
             LogService::write('微信管理', '修改微信接口参数成功');
         } catch (\Exception $e) {
-            $this->error('微信授权保存成功, 但授权验证失败 ! <br>' . $e->getMessage());
+            $this->error('微信授权保存失败 , 请稍候重试 ! ' . $e->getMessage());
         }
         $this->success('微信授权数据修改成功！', url('@admin') . "#" . url('@wechat/config/index'));
     }

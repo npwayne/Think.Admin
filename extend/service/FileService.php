@@ -69,8 +69,8 @@ class FileService
 
     /**
      * 获取文件当前URL地址
-     * @param string $filename 文件HASH名称
-     * @param string|null $storage 文件存储引擎
+     * @param string $filename
+     * @param string|null $storage
      * @return bool|string
      * @throws OssException
      * @throws \think\Exception
@@ -89,11 +89,11 @@ class FileService
             case 'oss':
                 return self::getBaseUriOss() . $filename;
         }
-        throw new \think\Exception('未设置存储方式，无法获取到文件对应URL地址');
+        return false;
     }
 
     /**
-     * 根据配置获取到本地上传的目标地址
+     * 根据配置获取到七牛云文件上传目标地址
      * @return string
      */
     public static function getUploadLocalUrl()
@@ -115,9 +115,9 @@ class FileService
         switch ($region) {
             case '华东':
                 if ($isHttps) {
-                    return $isClient ? 'https://upload.qiniup.com' : 'https://upload.qiniup.com';
+                    return $isClient ? 'https:///upload.qiniup.com' : 'https://upload.qiniup.com';
                 }
-                return $isClient ? 'http://upload.qiniup.com' : 'http://upload.qiniup.com';
+                return $isClient ? 'http:///upload.qiniup.com' : 'http://upload.qiniup.com';
             case '华北':
                 if ($isHttps) {
                     return $isClient ? 'https://upload-z1.qiniup.com' : 'https://up-z1.qiniup.com';
@@ -129,12 +129,11 @@ class FileService
                 }
                 return $isClient ? 'http://upload-na0.qiniup.com' : 'http://up-na0.qiniup.com';
             case '华南':
+            default:
                 if ($isHttps) {
                     return $isClient ? 'https://upload-z2.qiniup.com' : 'https://up-z2.qiniup.com';
                 }
                 return $isClient ? 'http://upload-z2.qiniup.com' : 'http://up-z2.qiniup.com';
-            default:
-                throw new \think\Exception('未配置七牛云存储区域');
         }
     }
 
@@ -156,9 +155,8 @@ class FileService
      */
     public static function getBaseUriLocal()
     {
-        $appRoot = request()->root(true);  // 去掉参数 true 将获得相对地址
+        $appRoot = request()->root(true);
         $uriRoot = preg_match('/\.php$/', $appRoot) ? dirname($appRoot) : $appRoot;
-        $uriRoot = in_array($uriRoot, ['/', '\\']) ? '' : $uriRoot;
         return "{$uriRoot}/static/upload/";
     }
 
@@ -175,10 +173,8 @@ class FileService
                 return 'https://' . sysconf('storage_qiniu_domain') . '/';
             case 'http':
                 return 'http://' . sysconf('storage_qiniu_domain') . '/';
-            case 'auto':
-                return '//' . sysconf('storage_qiniu_domain') . '/';
             default:
-                throw new \think\Exception('未设置七牛云文件地址协议');
+                return '//' . sysconf('storage_qiniu_domain') . '/';
         }
     }
 
@@ -195,10 +191,8 @@ class FileService
                 return 'https://' . sysconf('storage_oss_domain') . '/';
             case 'http':
                 return 'http://' . sysconf('storage_oss_domain') . '/';
-            case 'auto':
-                return '//' . sysconf('storage_oss_domain') . '/';
             default:
-                throw new \think\Exception('未设置阿里云文件地址协议');
+                return '//' . sysconf('storage_oss_domain') . '/';
         }
     }
 
@@ -262,9 +256,9 @@ class FileService
             case 'oss':
                 $ossClient = new OssClient(sysconf('storage_oss_keyid'), sysconf('storage_oss_secret'), self::getBaseUriOss(), true);
                 return $ossClient->getObject(sysconf('storage_oss_bucket'), $filename);
-            default:
-                throw new \think\Exception('未配置读取文件的存储方法');
         }
+        Log::error("通过{$storage}读取文件{$filename}的不存在！");
+        return null;
     }
 
     /**

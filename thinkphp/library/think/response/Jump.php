@@ -11,6 +11,7 @@
 
 namespace think\response;
 
+use think\Container;
 use think\Response;
 
 class Jump extends Response
@@ -26,7 +27,10 @@ class Jump extends Response
      */
     protected function output($data)
     {
-        $data = $this->app['view']->fetch($this->options['jump_template'], $data);
+        $config = Container::get('config');
+        $data   = Container::get('view')
+            ->init($config->pull('template'))
+            ->fetch($this->options['jump_template'], $data);
         return $data;
     }
 }

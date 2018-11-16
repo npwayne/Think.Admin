@@ -28,13 +28,14 @@ class Custom extends BasicWeChat
      * 添加客服帐号
      * @param string $kf_account 客服账号
      * @param string $nickname 客服昵称
+     * @param string $password 账号密码
      * @return array
      * @throws Exceptions\InvalidResponseException
      * @throws Exceptions\LocalCacheException
      */
-    public function addAccount($kf_account, $nickname)
+    public function addAccount($kf_account, $nickname, $password)
     {
-        $data = ['kf_account' => $kf_account, 'nickname' => $nickname];
+        $data = ['kf_account' => $kf_account, 'nickname' => $nickname, 'password' => $password];
         $url = "https://api.weixin.qq.com/customservice/kfaccount/add?access_token=ACCESS_TOKEN";
         $this->registerApi($url, __FUNCTION__, func_get_args());
         return $this->httpPostForJson($url, $data);
@@ -44,13 +45,14 @@ class Custom extends BasicWeChat
      * 修改客服帐号
      * @param string $kf_account 客服账号
      * @param string $nickname 客服昵称
+     * @param string $password 账号密码
      * @return array
      * @throws Exceptions\InvalidResponseException
      * @throws Exceptions\LocalCacheException
      */
-    public function updateAccount($kf_account, $nickname)
+    public function updateAccount($kf_account, $nickname, $password)
     {
-        $data = ['kf_account' => $kf_account, 'nickname' => $nickname];
+        $data = ['kf_account' => $kf_account, 'nickname' => $nickname, 'password' => $password];
         $url = "https://api.weixin.qq.com/customservice/kfaccount/update?access_token=ACCESS_TOKEN";
         $this->registerApi($url, __FUNCTION__, func_get_args());
         return $this->httpPostForJson($url, $data);
@@ -59,13 +61,15 @@ class Custom extends BasicWeChat
     /**
      * 删除客服帐号
      * @param string $kf_account 客服账号
+     * @param string $nickname 客服昵称
+     * @param string $password 账号密码
      * @return array
      * @throws Exceptions\InvalidResponseException
      * @throws Exceptions\LocalCacheException
      */
-    public function deleteAccount($kf_account)
+    public function deleteAccount($kf_account, $nickname, $password)
     {
-        $data = ['kf_account' => $kf_account];
+        $data = ['kf_account' => $kf_account, 'nickname' => $nickname, 'password' => $password];
         $url = "https://api.weixin.qq.com/customservice/kfaccount/del?access_token=ACCESS_TOKEN";
         $this->registerApi($url, __FUNCTION__, func_get_args());
         return $this->httpPostForJson($url, $data);

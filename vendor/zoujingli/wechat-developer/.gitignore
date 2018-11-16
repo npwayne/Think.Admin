@@ -1,8 +1,5 @@
-/.git
 /.idea
+/.git
 /.DS_Store
 /vendor
-/Cache
-/Test/cert
-/nbproject
-/composer.lock
+/WeChat/Cache

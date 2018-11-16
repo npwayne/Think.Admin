@@ -15,7 +15,7 @@ use think\route\Dispatch;
 
 class Response extends Dispatch
 {
-    public function exec()
+    public function run()
     {
         return $this->dispatch;
     }

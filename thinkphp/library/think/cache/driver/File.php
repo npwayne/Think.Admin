@@ -110,7 +110,7 @@ class File extends Driver
      */
     public function has($name)
     {
-        return false !== $this->get($name) ? true : false;
+        return $this->get($name) ? true : false;
     }
 
     /**

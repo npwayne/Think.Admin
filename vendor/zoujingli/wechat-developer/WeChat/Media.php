@@ -46,20 +46,15 @@ class Media extends BasicWeChat
     /**
      * 获取临时素材
      * @param string $media_id
-     * @param string $outType 返回处理函数
-     * @return array|string
+     * @return bool|string
      * @throws Exceptions\LocalCacheException
      * @throws InvalidResponseException
      */
-    public function get($media_id, $outType = null)
+    public function get($media_id)
     {
         $url = "https://api.weixin.qq.com/cgi-bin/media/get?access_token=ACCESS_TOKEN&media_id={$media_id}";
         $this->registerApi($url, __FUNCTION__, func_get_args());
-        $result = Tools::get($url);
-        if (json_decode($result)) {
-            return Tools::json2arr($result);
-        }
-        return is_null($outType) ? $result : $outType($result);
+        return Tools::get($url);
     }
 
     /**
@@ -129,20 +124,15 @@ class Media extends BasicWeChat
     /**
      * 获取永久素材
      * @param string $media_id
-     * @param null|string $outType 输出类型
-     * @return array|string
+     * @return array
      * @throws Exceptions\LocalCacheException
      * @throws InvalidResponseException
      */
-    public function getMaterial($media_id, $outType = null)
+    public function getMaterial($media_id)
     {
         $url = "https://api.weixin.qq.com/cgi-bin/material/get_material?access_token=ACCESS_TOKEN";
         $this->registerApi($url, __FUNCTION__, func_get_args());
-        $result = Tools::post($url, ['media_id' => $media_id]);
-        if (json_decode($result)) {
-            return Tools::json2arr($result);
-        }
-        return is_null($outType) ? $result : $outType($result);
+        return $this->httpPostForJson($url, ['media_id' => $media_id]);
     }
 
     /**

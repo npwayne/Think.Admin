@@ -75,8 +75,10 @@ class Tools
         if (empty($mines)) {
             $content = file_get_contents('http://svn.apache.org/repos/asf/httpd/httpd/trunk/docs/conf/mime.types');
             preg_match_all('#^([^\s]{2,}?)\s+(.+?)$#ism', $content, $matches, PREG_SET_ORDER);
-            foreach ($matches as $match) foreach (explode(" ", $match[2]) as $ext) {
-                $mines[$ext] = $match[1];
+            foreach ($matches as $match) {
+                foreach (explode(" ", $match[2]) as $ext) {
+                    $mines[$ext] = $match[1];
+                }
             }
             self::setCache('all_ext_mine', $mines);
         }
@@ -141,10 +143,7 @@ class Tools
      */
     public static function xml2arr($xml)
     {
-        $entity = libxml_disable_entity_loader(true);
-        $data = (array)simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
-        libxml_disable_entity_loader($entity);
-        return json_decode(self::arr2json($data), true);
+        return json_decode(self::arr2json(simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA)), true);
     }
 
     /**
@@ -156,7 +155,7 @@ class Tools
     {
         return preg_replace_callback('/\\\\u([0-9a-f]{4})/i', function ($matches) {
             return mb_convert_encoding(pack("H*", $matches[1]), "UTF-8", "UCS-2BE");
-        }, ($jsonData = json_encode($data)) == '[]' ? '{}' : $jsonData);
+        }, json_encode($data));
     }
 
     /**
@@ -255,33 +254,19 @@ class Tools
     }
 
     /**
-     * 写入文件
-     * @param string $name 文件名称
-     * @param string $content 文件内容
-     * @return string
-     * @throws LocalCacheException
-     */
-    public static function pushFile($name, $content)
-    {
-        $file = self::getCacheName($name);
-        if (!file_put_contents($file, $content)) throw new LocalCacheException('local file write error.', '0');
-        return $file;
-    }
-
-    /**
      * 缓存配置与存储
      * @param string $name 缓存名称
      * @param string $value 缓存内容
      * @param int $expired 缓存时间(0表示永久缓存)
-     * @return string
      * @throws LocalCacheException
      */
     public static function setCache($name, $value = '', $expired = 3600)
     {
-        $file = self::getCacheName($name);
+        $cache_file = self::getCacheName($name);
         $content = serialize(['name' => $name, 'value' => $value, 'expired' => time() + intval($expired)]);
-        if (!file_put_contents($file, $content)) throw new LocalCacheException('local cache error.', '0');
-        return $file;
+        if (!file_put_contents($cache_file, $content)) {
+            throw new LocalCacheException('local cache error.', '0');
+        }
     }
 
     /**
@@ -291,8 +276,8 @@ class Tools
      */
     public static function getCache($name)
     {
-        $file = self::getCacheName($name);
-        if (file_exists($file) && ($content = file_get_contents($file))) {
+        $cache_file = self::getCacheName($name);
+        if (file_exists($cache_file) && ($content = file_get_contents($cache_file))) {
             $data = unserialize($content);
             if (isset($data['expired']) && (intval($data['expired']) === 0 || intval($data['expired']) >= time())) {
                 return $data['value'];
@@ -309,8 +294,8 @@ class Tools
      */
     public static function delCache($name)
     {
-        $file = self::getCacheName($name);
-        return file_exists($file) ? unlink($file) : true;
+        $cache_file = self::getCacheName($name);
+        return file_exists($cache_file) ? unlink($cache_file) : true;
     }
 
     /**
@@ -321,7 +306,7 @@ class Tools
     private static function getCacheName($name)
     {
         if (empty(self::$cache_path)) {
-            self::$cache_path = dirname(dirname(__DIR__)) . DIRECTORY_SEPARATOR . 'Cache' . DIRECTORY_SEPARATOR;
+            self::$cache_path = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'Cache' . DIRECTORY_SEPARATOR;
         }
         self::$cache_path = rtrim(self::$cache_path, '/\\') . DIRECTORY_SEPARATOR;
         file_exists(self::$cache_path) || mkdir(self::$cache_path, 0755, true);

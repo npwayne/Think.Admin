@@ -51,17 +51,6 @@ class Lang
         'zh-hans-cn' => 'zh-cn',
     ];
 
-    /**
-     * 应用对象
-     * @var App
-     */
-    protected $app;
-
-    public function __construct(App $app)
-    {
-        $this->app = $app;
-    }
-
     // 设定当前的语言
     public function range($range = '')
     {
@@ -119,7 +108,7 @@ class Lang
         foreach ($file as $_file) {
             if (is_file($_file)) {
                 // 记录加载信息
-                $this->app->log('[ LANG ] ' . $_file);
+                Container::get('app')->log('[ LANG ] ' . $_file);
                 $_lang = include $_file;
                 if (is_array($_lang)) {
                     $lang = array_change_key_case($_lang) + $lang;
@@ -161,7 +150,7 @@ class Lang
         $range = $range ?: $this->range;
 
         // 空参数返回所有定义
-        if (is_null($name)) {
+        if (empty($name)) {
             return $this->lang[$range];
         }
 
@@ -211,8 +200,11 @@ class Lang
         } elseif (isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])) {
             // 自动侦测浏览器语言
             preg_match('/^([a-z\d\-]+)/i', $_SERVER['HTTP_ACCEPT_LANGUAGE'], $matches);
-            $langSet = strtolower($matches[1]);
-            if (isset($this->acceptLanguage[$langSet])) {
+            $langSet     = strtolower($matches[1]);
+            $acceptLangs = Container::get('config')->get('header_accept_lang');
+            if (isset($acceptLangs[$langSet])) {
+                $langSet = $acceptLangs[$langSet];
+            } elseif (isset($this->acceptLanguage[$langSet])) {
                 $langSet = $this->acceptLanguage[$langSet];
             }
         }
@@ -266,19 +258,8 @@ class Lang
      * @param  array $list 语言列表
      * @return void
      */
-    public function setAllowLangList(array $list)
+    public function setAllowLangList($list)
     {
         $this->allowLangList = $list;
-    }
-
-    /**
-     * 设置转义的语言列表
-     * @access public
-     * @param  array $list 语言列表
-     * @return void
-     */
-    public function setAcceptLanguage(array $list)
-    {
-        $this->acceptLanguage = array_merge($this->acceptLanguage, $list);
     }
 }

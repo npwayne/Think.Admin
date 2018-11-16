@@ -58,9 +58,7 @@ class Menu extends BasicAdmin
     protected function _index_data_filter(&$data)
     {
         foreach ($data as &$vo) {
-            if ($vo['url'] !== '#') {
-                $vo['url'] = url($vo['url']) . (empty($vo['params']) ? '' : "?{$vo['params']}");
-            }
+            ($vo['url'] !== '#') && ($vo['url'] = url($vo['url']));
             $vo['ids'] = join(',', ToolsService::getArrSubIds($data, $vo['id']));
         }
         $data = ToolsService::arr2table($data);

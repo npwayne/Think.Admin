@@ -36,7 +36,7 @@ class TagsService
      */
     public static function syncTagsByOpenid($openid)
     {
-        $tagsid = WechatService::WeChatTags()->getUserTagId($openid);
+        $tagsid = WechatService::tags()->getUserTagId($openid);
         if (!is_array($tagsid)) {
             return false;
         }
@@ -55,7 +55,7 @@ class TagsService
     public static function sync()
     {
         $appid = WechatService::getAppid();
-        $result = WechatService::WeChatTags()->getTags();
+        $result = WechatService::tags()->getTags();
         Db::name('WechatFansTags')->where(['appid' => $appid])->delete();
         foreach (array_chunk($result['tags'], 100) as $list) {
             foreach ($list as &$vo) {

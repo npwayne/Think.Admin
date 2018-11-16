@@ -59,9 +59,8 @@ class Plugs extends BasicAdmin
         if (!$file->checkExt(strtolower(sysconf('storage_local_exts')))) {
             return json(['code' => 'ERROR', 'msg' => '文件上传类型受限']);
         }
-        $names = str_split($this->request->post('md5'), 16);
         $ext = strtolower(pathinfo($file->getInfo('name'), 4));
-        $ext = $ext ? $ext : 'tmp';
+        $names = str_split($this->request->post('md5'), 16);
         $filename = "{$names[0]}/{$names[1]}.{$ext}";
         // 文件上传Token验证
         if ($this->request->post('token') !== md5($filename . session_id())) {
@@ -85,22 +84,21 @@ class Plugs extends BasicAdmin
     public function upstate()
     {
         $post = $this->request->post();
-        $ext = strtolower(pathinfo($post['filename'], 4));
-        $filename = join('/', str_split($post['md5'], 16)) . '.' . ($ext ? $ext : 'tmp');
+        $filename = join('/', str_split($post['md5'], 16)) . '.' . strtolower(pathinfo($post['filename'], 4));
         // 检查文件是否已上传
         if (($site_url = FileService::getFileUrl($filename))) {
-            return json(['data' => ['site_url' => $site_url], 'code' => "IS_FOUND"]);
+            $this->result(['site_url' => $site_url], 'IS_FOUND');
         }
         // 需要上传文件，生成上传配置参数
-        $data = ['uptype' => $post['uptype'], 'file_url' => $filename];
+        $config = ['uptype' => $post['uptype'], 'file_url' => $filename];
         switch (strtolower($post['uptype'])) {
             case 'local':
-                $data['token'] = md5($filename . session_id());
-                $data['server'] = FileService::getUploadLocalUrl();
+                $config['server'] = FileService::getUploadLocalUrl();
+                $config['token'] = md5($filename . session_id());
                 break;
             case 'qiniu':
-                $data['token'] = $this->_getQiniuToken($filename);
-                $data['server'] = FileService::getUploadQiniuUrl(true);
+                $config['server'] = FileService::getUploadQiniuUrl(true);
+                $config['token'] = $this->_getQiniuToken($filename);
                 break;
             case 'oss':
                 $time = time() + 3600;
@@ -108,14 +106,13 @@ class Plugs extends BasicAdmin
                     'expiration' => date('Y-m-d', $time) . 'T' . date('H:i:s', $time) . '.000Z',
                     'conditions' => [['content-length-range', 0, 1048576000]],
                 ];
-                $data['server'] = FileService::getUploadOssUrl();
-                $data['policy'] = base64_encode(json_encode($policyText));
-                $data['site_url'] = FileService::getBaseUriOss() . $filename;
-                $data['signature'] = base64_encode(hash_hmac('sha1', $data['policy'], sysconf('storage_oss_secret'), true));
-                $data['OSSAccessKeyId'] = sysconf('storage_oss_keyid');
-                break;
+                $config['server'] = FileService::getUploadOssUrl();
+                $config['policy'] = base64_encode(json_encode($policyText));
+                $config['site_url'] = FileService::getBaseUriOss() . $filename;
+                $config['signature'] = base64_encode(hash_hmac('sha1', $config['policy'], sysconf('storage_oss_secret'), true));
+                $config['OSSAccessKeyId'] = sysconf('storage_oss_keyid');
         }
-        return json(['data' => $data, 'code' => "NOT_FOUND"]);
+        $this->result($config, 'NOT_FOUND');
     }
 
     /**

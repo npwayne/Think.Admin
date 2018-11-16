@@ -14,8 +14,8 @@
 
 namespace WeChat;
 
-use WeChat\Contracts\BasicWeChat;
 use WeChat\Contracts\Tools;
+use WeChat\Contracts\BasicWeChat;
 use WeChat\Exceptions\InvalidResponseException;
 
 /**
@@ -104,14 +104,18 @@ class Script extends BasicWeChat
      * 数据生成签名
      * @param array $data 签名数组
      * @param string $method 签名方法
-     * @param array $params 签名参数
      * @return bool|string 签名值
      */
-    protected function getSignature($data, $method = "sha1", $params = [])
+    protected function getSignature($data, $method = "sha1")
     {
+        if (!function_exists($method)) {
+            return false;
+        }
         ksort($data);
-        if (!function_exists($method)) return false;
-        foreach ($data as $k => $v) array_push($params, "{$k}={$v}");
+        $params = [];
+        foreach ($data as $key => $value) {
+            $params[] = "{$key}={$value}";
+        }
         return $method(join('&', $params));
     }
 }

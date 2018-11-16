@@ -74,7 +74,7 @@ class Tags extends BasicAdmin
         if (Db::name($this->table)->where('name', $name)->count() > 0) {
             $this->error('粉丝标签标签名已经存在, 请使用其它标签名!');
         }
-        $wechat = WechatService::WeChatTags();
+        $wechat = WechatService::tags();
         if (false === ($result = $wechat->createTags($name)) && isset($result['tag'])) {
             $this->error("添加粉丝标签失败. ");
         }
@@ -110,7 +110,7 @@ class Tags extends BasicAdmin
             $this->error('标签已经存在, 使用其它名称再试!');
         }
         try {
-            WechatService::WeChatTags()->updateTags($id, $name);
+            WechatService::tags()->updateTags($id, $name);
             DataService::save($this->table, ['id' => $id, 'name' => $name], 'id');
         } catch (\Exception $e) {
             $this->error('编辑标签失败, 请稍后再试!' . $e->getMessage());
@@ -128,7 +128,7 @@ class Tags extends BasicAdmin
      */
     public function del()
     {
-        $wechat = WechatService::WeChatTags();
+        $wechat = WechatService::tags();
         foreach (explode(',', $this->request->post('id', '')) as $id) {
             if ($wechat->deleteTags($id)) {
                 Db::name('WechatFansTags')->where(['id' => $id])->delete();

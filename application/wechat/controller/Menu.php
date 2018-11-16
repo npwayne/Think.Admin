@@ -91,7 +91,7 @@ class Menu extends BasicAdmin
             if (empty($post['data'])) {
                 try {
                     Db::name($this->table)->where('1=1')->delete();
-                    WechatService::WeChatMenu()->delete();
+                    WechatService::menu()->delete();
                 } catch (\Exception $e) {
                     $this->error('删除取消微信菜单失败，请稍候再试！' . $e->getMessage());
                 }
@@ -121,7 +121,7 @@ class Menu extends BasicAdmin
     public function cancel()
     {
         try {
-            WechatService::WeChatMenu()->delete();
+            WechatService::menu()->delete();
         } catch (\Exception $e) {
             $this->error('菜单取消失败');
         }
@@ -150,7 +150,8 @@ class Menu extends BasicAdmin
                 } else {
                     $row['url'] = url($row['content'], '', true, true);
                 }
-            } elseif ($row['type'] === 'event') {
+            } elseif
+            ($row['type'] === 'event') {
                 if (isset($this->menuType[$row['content']])) {
                     list($row['type'], $row['key']) = [$row['content'], "wechat_menu#id#{$row['id']}"];
                 }
@@ -174,7 +175,7 @@ class Menu extends BasicAdmin
             }
             unset($menu['type']);
         }
-        WechatService::WeChatMenu()->create(['button' => $menus]);
+        WechatService::menu()->create(['button' => $menus]);
     }
 
 }

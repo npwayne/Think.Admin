@@ -18,6 +18,7 @@ use think\facade\App;
 
 class RunServer extends Command
 {
+
     public function configure()
     {
         $this->setName('run')

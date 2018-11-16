@@ -145,10 +145,7 @@ class News extends BasicAdmin
         $id = $this->request->get('id', '');
         if ($this->request->isGet()) {
             empty($id) && $this->error('参数错误，请稍候再试！');
-            if ($this->request->get('output') === 'json') {
-                ToolsService::success('获取数据成功', MediaService::getNewsById($id));
-            }
-            return $this->fetch('form', ['title' => '编辑图文']);
+            return $this->fetch('form', ['title' => '编辑图文', 'vo' => MediaService::getNewsById($id)]);
         }
         $data = $this->request->post();
         $ids = $this->_apply_news_article($data['data']);
@@ -257,7 +254,8 @@ class News extends BasicAdmin
                     $data['filter'] = ['is_to_all' => false, 'tag_id' => join(',', $post['fans_tags'])];
                     $data['mpnews'] = ['media_id' => $newsinfo['media_id']];
                 }
-                if (WechatService::WeChatCustom()->massSendAll($data)) {
+                $wechat = WechatService::custom();
+                if (false !== $wechat->massSendAll($data)) {
                     LogService::write('微信管理', "图文[{$news_id}]推送成功");
                     $this->success('微信图文推送成功！', '');
                 }
@@ -283,7 +281,7 @@ class News extends BasicAdmin
                 return "<img{$matches[1]}src=\"{$src}\"{$matches[3]}/>";
             }, $article['content']);
         }
-        $wechat = WechatService::WeChatMedia();
+        $wechat = WechatService::media();
         // 如果已经上传过，先删除之前的历史记录
         !empty($news['media_id']) && $wechat->delMaterial($news['media_id']);
         // 上传图文到微信服务器

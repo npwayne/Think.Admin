@@ -17,7 +17,8 @@ class Resource extends RuleGroup
 {
     // 资源路由名称
     protected $resource;
-
+    // 资源路由地址
+    protected $route;
     // REST路由方法定义
     protected $rest = [];
 
@@ -53,24 +54,19 @@ class Resource extends RuleGroup
             $this->domain = $this->parent->getDomain();
             $this->parent->addRuleItem($this);
         }
-
-        if ($router->isTest()) {
-            $this->buildResourceRule();
-        }
     }
 
     /**
      * 生成资源路由规则
      * @access protected
+     * @param  string    $rule       路由规则
+     * @param  array     $option     路由参数
      * @return void
      */
-    protected function buildResourceRule()
+    protected function buildResourceRule($rule, $option = [])
     {
         $origin = $this->router->getGroup();
         $this->router->setGroup($this);
-
-        $rule   = $this->resource;
-        $option = $this->option;
 
         if (strpos($rule, '.')) {
             // 注册嵌套资源路由
@@ -85,8 +81,6 @@ class Resource extends RuleGroup
             $rule = implode('/', $item) . '/' . $last;
         }
 
-        $prefix = substr($rule, strlen($this->name) + 1);
-
         // 注册资源路由
         foreach ($this->rest as $key => $val) {
             if ((isset($option['only']) && !in_array($key, $option['only']))
@@ -100,7 +94,9 @@ class Resource extends RuleGroup
                 $val[1] = str_replace('<id>', '<' . $option['var'][$rule] . '>', $val[1]);
             }
 
-            $this->addRule(trim($prefix . $val[1], '/'), $this->route . '/' . $val[2], $val[0]);
+            $option['rest'] = $key;
+
+            $this->addRule(trim($val[1], '/'), $this->route . '/' . $val[2], $val[0], $option);
         }
 
         $this->router->setGroup($origin);
@@ -123,4 +119,38 @@ class Resource extends RuleGroup
 
         return $this;
     }
+
+    /**
+     * 设置资源允许
+     * @access public
+     * @param  array     $only
+     * @return $this
+     */
+    public function only($only)
+    {
+        return $this->option('only', $only);
+    }
+
+    /**
+     * 设置资源排除
+     * @access public
+     * @param  array     $except
+     * @return $this
+     */
+    public function except($except)
+    {
+        return $this->option('except', $except);
+    }
+
+    /**
+     * 设置资源路由的变量
+     * @access public
+     * @param  array     $vars
+     * @return $this
+     */
+    public function vars($vars)
+    {
+        return $this->option('var', $vars);
+    }
+
 }

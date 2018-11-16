@@ -70,7 +70,7 @@ class Memcache extends Driver
     {
         $key = $this->getCacheKey($name);
 
-        return false !== $this->handler->get($key);
+        return $this->handler->get($key) ? true : false;
     }
 
     /**

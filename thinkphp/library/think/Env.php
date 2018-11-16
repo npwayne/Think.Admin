@@ -43,7 +43,7 @@ class Env
      * @param  mixed     $default  默认值
      * @return mixed
      */
-    public function get($name = null, $default = null, $php_prefix = true)
+    public function get($name = null, $default = null)
     {
         if (is_null($name)) {
             return $this->data;
@@ -55,16 +55,12 @@ class Env
             return $this->data[$name];
         }
 
-        return $this->getEnv($name, $default, $php_prefix);
+        return $this->getEnv($name, $default);
     }
 
-    protected function getEnv($name, $default = null, $php_prefix = true)
+    protected function getEnv($name, $default = null)
     {
-        if ($php_prefix) {
-            $name = 'PHP_' . $name;
-        }
-
-        $result = getenv($name);
+        $result = getenv('PHP_' . $name);
 
         if (false === $result) {
             return $default;

@@ -20,7 +20,6 @@ use think\exception\TemplateNotFoundException;
  */
 class Template
 {
-    protected $app;
     /**
      * 模板变量
      * @var array
@@ -84,10 +83,9 @@ class Template
      * @access public
      * @param  array $config
      */
-    public function __construct(App $app, array $config = [])
+    public function __construct(array $config = [])
     {
-        $this->app                  = $app;
-        $this->config['cache_path'] = $app->getRuntimePath() . 'temp/';
+        $this->config['cache_path'] = Container::get('app')->getRuntimePath() . 'temp/';
         $this->config               = array_merge($this->config, $config);
 
         $this->config['taglib_begin_origin'] = $this->config['taglib_begin'];
@@ -99,14 +97,10 @@ class Template
         $this->config['tpl_end']      = preg_quote($this->config['tpl_end'], '/');
 
         // 初始化模板编译存储器
-        $type = $this->config['compile_type'] ? $this->config['compile_type'] : 'File';
+        $type  = $this->config['compile_type'] ? $this->config['compile_type'] : 'File';
+        $class = false !== strpos($type, '\\') ? $type : '\\think\\template\\driver\\' . ucwords($type);
 
-        $this->storage = Loader::factory($type, '\\think\\template\\driver\\', null);
-    }
-
-    public static function __make(Config $config)
-    {
-        return new static($config->pull('template'));
+        $this->storage = new $class();
     }
 
     /**
@@ -195,7 +189,7 @@ class Template
             $this->config($config);
         }
 
-        $cache = $this->app['cache'];
+        $cache = Container::get('cache');
 
         if (!empty($this->config['cache_id']) && $this->config['display_cache']) {
             // 读取渲染缓存
@@ -343,7 +337,7 @@ class Template
     {
         if ($cacheId && $this->config['display_cache']) {
             // 缓存页面输出
-            return $this->app['cache']->has($cacheId);
+            return Container::get('cache')->has($cacheId);
         }
 
         return false;
@@ -387,7 +381,7 @@ class Template
         }
 
         // 优化生成的php代码
-        $content = preg_replace('/\?>\s*<\?php\s(?!echo\b|\bend)/s', '', $content);
+        $content = preg_replace('/\?>\s*<\?php\s(?!echo\b)/s', '', $content);
 
         // 模板过滤输出
         $replace = $this->config['tpl_replace_string'];
@@ -1050,7 +1044,7 @@ class Template
 
                 switch (strtolower($fun)) {
                     case 'raw':
-                        break;
+                        continue;
                     case 'date':
                         $name = 'date(' . $args[1] . ',!is_numeric(' . $name . ')? strtotime(' . $name . ') : ' . $name . ')';
                         break;
@@ -1224,10 +1218,10 @@ class Template
             }
 
             if ($this->config['view_base']) {
-                $module = isset($module) ? $module : $this->app['request']->module();
+                $module = isset($module) ? $module : Container::get('request')->module();
                 $path   = $this->config['view_base'] . ($module ? $module . DIRECTORY_SEPARATOR : '');
             } else {
-                $path = isset($module) ? $this->app->getAppPath() . $module . DIRECTORY_SEPARATOR . basename($this->config['view_path']) . DIRECTORY_SEPARATOR : $this->config['view_path'];
+                $path = isset($module) ? Container::get('app')->getAppPath() . $module . DIRECTORY_SEPARATOR . basename($this->config['view_path']) . DIRECTORY_SEPARATOR : $this->config['view_path'];
             }
 
             $template = $path . $template . '.' . ltrim($this->config['view_suffix'], '.');
@@ -1269,9 +1263,9 @@ class Template
             switch ($tagName) {
                 case 'block':
                     if ($single) {
-                        $regex = $begin . '(?:' . $tagName . '\b\s+(?>(?:(?!name=).)*)\bname=([\'\"])(?P<name>[\$\w\-\/\.]+)\\1(?>[^' . $end . ']*)|\/' . $tagName . ')' . $end;
+                        $regex = $begin . '(?:' . $tagName . '\b(?>(?:(?!name=).)*)\bname=([\'\"])(?P<name>[\$\w\-\/\.]+)\\1(?>[^' . $end . ']*)|\/' . $tagName . ')' . $end;
                     } else {
-                        $regex = $begin . '(?:' . $tagName . '\b\s+(?>(?:(?!name=).)*)\bname=([\'\"])(?P<name>[\$\w\-\/\.]+)\\1(?>(?:(?!' . $end . ').)*)|\/' . $tagName . ')' . $end;
+                        $regex = $begin . '(?:' . $tagName . '\b(?>(?:(?!name=).)*)\bname=([\'\"])(?P<name>[\$\w\-\/\.]+)\\1(?>(?:(?!' . $end . ').)*)|\/' . $tagName . ')' . $end;
                     }
                     break;
                 case 'literal':
@@ -1297,22 +1291,14 @@ class Template
                         $name = 'name';
                     }
                     if ($single) {
-                        $regex = $begin . $tagName . '\b\s+(?>(?:(?!' . $name . '=).)*)\b' . $name . '=([\'\"])(?P<name>[\$\w\-\/\.\:@,\\\\]+)\\1(?>[^' . $end . ']*)' . $end;
+                        $regex = $begin . $tagName . '\b(?>(?:(?!' . $name . '=).)*)\b' . $name . '=([\'\"])(?P<name>[\$\w\-\/\.\:@,\\\\]+)\\1(?>[^' . $end . ']*)' . $end;
                     } else {
-                        $regex = $begin . $tagName . '\b\s+(?>(?:(?!' . $name . '=).)*)\b' . $name . '=([\'\"])(?P<name>[\$\w\-\/\.\:@,\\\\]+)\\1(?>(?:(?!' . $end . ').)*)' . $end;
+                        $regex = $begin . $tagName . '\b(?>(?:(?!' . $name . '=).)*)\b' . $name . '=([\'\"])(?P<name>[\$\w\-\/\.\:@,\\\\]+)\\1(?>(?:(?!' . $end . ').)*)' . $end;
                     }
                     break;
             }
         }
 
         return '/' . $regex . '/is';
-    }
-
-    public function __debugInfo()
-    {
-        $data = get_object_vars($this);
-        unset($data['app'], $data['storege']);
-
-        return $data;
     }
 }

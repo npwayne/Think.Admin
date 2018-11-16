@@ -13,14 +13,6 @@ namespace think;
 
 use think\cache\Driver;
 
-/**
- * Class Cache
- *
- * @package think
- *
- * @mixin Driver
- * @mixin \think\cache\driver\File
- */
 class Cache
 {
     /**
@@ -30,10 +22,10 @@ class Cache
     protected $instance = [];
 
     /**
-     * 缓存配置
-     * @var array
+     * 应用对象
+     * @var App
      */
-    protected $config = [];
+    protected $app;
 
     /**
      * 操作句柄
@@ -41,10 +33,9 @@ class Cache
      */
     protected $handler;
 
-    public function __construct(array $config = [])
+    public function __construct(App $app)
     {
-        $this->config = $config;
-        $this->init($config);
+        $this->app = $app;
     }
 
     /**
@@ -56,18 +47,23 @@ class Cache
      */
     public function connect(array $options = [], $name = false)
     {
+        $type = !empty($options['type']) ? $options['type'] : 'File';
+
         if (false === $name) {
             $name = md5(serialize($options));
         }
 
         if (true === $name || !isset($this->instance[$name])) {
-            $type = !empty($options['type']) ? $options['type'] : 'File';
+            $class = false !== strpos($type, '\\') ? $type : '\\think\\cache\\driver\\' . ucwords($type);
+
+            // 记录初始化信息
+            $this->app->log('[ CACHE ] INIT ' . $type);
 
             if (true === $name) {
                 $name = md5(serialize($options));
             }
 
-            $this->instance[$name] = Loader::factory($type, '\\think\\cache\\driver\\', $options);
+            $this->instance[$name] = new $class($options);
         }
 
         return $this->instance[$name];
@@ -77,37 +73,25 @@ class Cache
      * 自动初始化缓存
      * @access public
      * @param  array         $options  配置数组
-     * @param  bool          $force    强制更新
      * @return Driver
      */
-    public function init(array $options = [], $force = false)
+    public function init(array $options = [])
     {
-        if (is_null($this->handler) || $force) {
+        if (is_null($this->handler)) {
+            // 自动初始化缓存
+            $config = $this->app['config'];
 
-            if ('complex' == $options['type']) {
-                $default = $options['default'];
-                $options = isset($options[$default['type']]) ? $options[$default['type']] : $default;
+            if (empty($options) && 'complex' == $config->get('cache.type')) {
+                $default = $config->get('cache.default');
+                $options = $config->get('cache.' . $default['type']) ?: $default;
+            } elseif (empty($options)) {
+                $options = $config->pull('cache');
             }
 
             $this->handler = $this->connect($options);
         }
 
         return $this->handler;
-    }
-
-    public static function __make(Config $config)
-    {
-        return new static($config->pull('cache'));
-    }
-
-    public function getConfig()
-    {
-        return $this->config;
-    }
-
-    public function setConfig(array $config)
-    {
-        $this->config = array_merge($this->config, $config);
     }
 
     /**
@@ -118,8 +102,8 @@ class Cache
      */
     public function store($name = '')
     {
-        if ('' !== $name && 'complex' == $this->config['type']) {
-            return $this->connect($this->config[$name], strtolower($name));
+        if ('' !== $name && 'complex' == $this->app['config']->get('cache.type')) {
+            return $this->connect($this->app['config']->get('cache.' . $name), strtolower($name));
         }
 
         return $this->init();

@@ -3,11 +3,11 @@
 {block name="button"}
 
 <!--{if auth("$classuri/add")}-->
-<button data-open="{:url('add')}" class='layui-btn layui-btn-sm layui-btn-primary'>添加规则</button>
+<button data-open="{:url('add')}" class='layui-btn layui-btn-sm'>添加规则</button>
 <!--{/if}-->
 
 <!--{if auth("$classuri/del")}-->
-<button data-update data-field='delete' data-action='{:url("$classuri/del")}' class='layui-btn layui-btn-sm layui-btn-primary'>删除规则</button>
+<button data-update data-field='delete' data-action='{:url("$classuri/del")}' class='layui-btn layui-btn-sm layui-btn-danger'>删除规则</button>
 <!--{/if}-->
 
 {/block}
@@ -21,7 +21,7 @@
     <table class="layui-table" lay-skin="line">
         <thead>
         <tr>
-            <th class='list-table-check-td think-checkbox'>
+            <th class='list-table-check-td'>
                 <input data-auto-none="" data-check-target='.list-check-box' type='checkbox'/>
             </th>
             <th class='list-table-sort-td'>
@@ -38,7 +38,7 @@
         <tbody>
         {foreach $list as $key=>$vo}
         <tr>
-            <td class='list-table-check-td think-checkbox'>
+            <td class='list-table-check-td'>
                 <input class="list-check-box" value='{$vo.id}' type='checkbox'/>
             </td>
             <td class='list-table-sort-td'>

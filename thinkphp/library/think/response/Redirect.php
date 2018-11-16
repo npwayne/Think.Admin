@@ -11,6 +11,7 @@
 
 namespace think\response;
 
+use think\Container;
 use think\Response;
 
 class Redirect extends Response
@@ -50,7 +51,7 @@ class Redirect extends Response
      */
     public function with($name, $value = null)
     {
-        $session = $this->app['session'];
+        $session = Container::get('session');
 
         if (is_array($name)) {
             foreach ($name as $key => $val) {
@@ -73,7 +74,7 @@ class Redirect extends Response
         if (strpos($this->data, '://') || (0 === strpos($this->data, '/') && empty($this->params))) {
             return $this->data;
         } else {
-            return $this->app['url']->build($this->data, $this->params);
+            return Container::get('url')->build($this->data, $this->params);
         }
     }
 
@@ -91,7 +92,7 @@ class Redirect extends Response
      */
     public function remember()
     {
-        $this->app['session']->set('redirect_url', $this->app['request']->url());
+        Container::get('session')->set('redirect_url', Container::get('request')->url());
 
         return $this;
     }
@@ -99,18 +100,15 @@ class Redirect extends Response
     /**
      * 跳转到上次记住的url
      * @access public
-     * @param  string  $url 闪存数据不存在时的跳转地址
      * @return $this
      */
-    public function restore($url = null)
+    public function restore()
     {
-        $session = $this->app['session'];
+        $session = Container::get('session');
 
         if ($session->has('redirect_url')) {
             $this->data = $session->get('redirect_url');
             $session->delete('redirect_url');
-        } elseif ($url) {
-            $this->data = $url;
         }
 
         return $this;

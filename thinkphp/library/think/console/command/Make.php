@@ -21,6 +21,7 @@ use think\facade\Env;
 
 abstract class Make extends Command
 {
+
     protected $type;
 
     abstract protected function getStub();
@@ -45,7 +46,7 @@ abstract class Make extends Command
         }
 
         if (!is_dir(dirname($pathname))) {
-            mkdir(dirname($pathname), 0755, true);
+            mkdir(strtolower(dirname($pathname)), 0755, true);
         }
 
         file_put_contents($pathname, $this->buildClass($classname));
@@ -62,12 +63,12 @@ abstract class Make extends Command
 
         $class = str_replace($namespace . '\\', '', $name);
 
-        return str_replace(['{%className%}', '{%actionSuffix%}', '{%namespace%}', '{%app_namespace%}'], [
+        return str_replace(['{%className%}', '{%namespace%}', '{%app_namespace%}'], [
             $class,
-            Config::get('action_suffix'),
             $namespace,
             App::getNamespace(),
         ], $stub);
+
     }
 
     protected function getPathName($name)

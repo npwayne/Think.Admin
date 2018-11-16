@@ -12,7 +12,7 @@ class {%className%} extends Controller
      *
      * @return \think\Response
      */
-    public function index{%actionSuffix%}()
+    public function index()
     {
         //
     }
@@ -23,7 +23,7 @@ class {%className%} extends Controller
      * @param  \think\Request  $request
      * @return \think\Response
      */
-    public function save{%actionSuffix%}(Request $request)
+    public function save(Request $request)
     {
         //
     }
@@ -34,7 +34,7 @@ class {%className%} extends Controller
      * @param  int  $id
      * @return \think\Response
      */
-    public function read{%actionSuffix%}($id)
+    public function read($id)
     {
         //
     }
@@ -46,7 +46,7 @@ class {%className%} extends Controller
      * @param  int  $id
      * @return \think\Response
      */
-    public function update{%actionSuffix%}(Request $request, $id)
+    public function update(Request $request, $id)
     {
         //
     }
@@ -57,7 +57,7 @@ class {%className%} extends Controller
      * @param  int  $id
      * @return \think\Response
      */
-    public function delete{%actionSuffix%}($id)
+    public function delete($id)
     {
         //
     }
